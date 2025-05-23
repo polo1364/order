@@ -3,26 +3,27 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>GAS 測試</title>
+  <title>便當系統中繼測試</title>
 </head>
 <body>
-  <h2>GAS 測試送出</h2>
-  <button id="testSend">送出測試資料</button>
-  <pre id="result"></pre>
+  <h2>測試中繼頁送資料</h2>
+  <button onclick="send()">送出測試資料</button>
+  <pre id="log"></pre>
 
 <script>
-document.getElementById("testSend").onclick = function () {
+function send() {
   const user = "TestUser";
   const date = "2025-05-23";
-  const item = "測試便當";
-  const price = 99;
+  const item = "中繼便當";
+  const price = "88";
 
-  const encodedBody = "user=" + encodeURIComponent(user) +
-                      "&date=" + encodeURIComponent(date) +
-                      "&item=" + encodeURIComponent(item) +
-                      "&price=" + encodeURIComponent(price);
+  const encodedBody =
+    "user=" + encodeURIComponent(user) +
+    "&date=" + encodeURIComponent(date) +
+    "&item=" + encodeURIComponent(item) +
+    "&price=" + encodeURIComponent(price);
 
-  fetch("https://script.google.com/macros/s/AKfycbxbeX3JbUDjHkLEtK5IqBZcfNCskxMYFk-HYSinw9yYK5n7LQxRix19Oj5HduHN-y9y/exec", {
+  fetch("https://script.google.com/macros/s/AKfycbwXHDbdfydmqAn56mYR7XiHcPuw3GDN55Ui11fQ311c0NxpWJjcvC7twU91XA87PkkK/exec", {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded"
@@ -30,9 +31,9 @@ document.getElementById("testSend").onclick = function () {
     body: encodedBody
   })
   .then(res => res.text())
-  .then(msg => document.getElementById("result").innerText = "✅ 成功：" + msg)
-  .catch(err => document.getElementById("result").innerText = "❌ 錯誤：" + err);
-};
+  .then(msg => document.getElementById("log").innerText = "✅ 成功：" + msg)
+  .catch(err => document.getElementById("log").innerText = "❌ 失敗：" + err);
+}
 </script>
 </body>
 </html>
