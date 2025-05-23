@@ -3,7 +3,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>午餐便當系統（同步版）</title>
+  <title>午餐便當系統（同步＋刪除修正版）</title>
   <style>
     body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 1em; }
     table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 6px 10px; }
@@ -102,13 +102,13 @@ function submitOrder() {
   .then(res => res.text())
   .then(msg => {
     console.log("✅ 傳送成功", msg);
-    fetchAndRenderStats();
+    setTimeout(fetchAndRenderStats, 300); // 延遲讓試算表寫入完成再抓統計
   })
   .catch(err => console.error("❌ 傳送失敗", err));
 }
 
 function fetchAndRenderStats() {
-  fetch("https://script.google.com/macros/s/AKfycbzJFVSSpPOHPr3M6t9jQgOtSnJ0PdrVqztgajFwGNXs74Yw5t9qZueRHBJm_T-f3oJY/exec")
+  fetch("https://script.google.com/macros/s/AKfycbzJFVSSpPOHPr3M6t9jQgOtSnJ0PdrVqztgajFwGNXs74Yw5t9qZueRHBJm_T-f3oJY/exec?t=" + Date.now())
     .then(res => res.json())
     .then(data => {
       const grouped = {};
