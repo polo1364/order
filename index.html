@@ -1,0 +1,204 @@
+
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>便當點餐系統（簡版）</title>
+  <style>
+    body { font-family: sans-serif; max-width: 900px; margin: auto; padding: 2em; }
+    .row { display: flex; gap: 2em; }
+    .section { flex: 1; }
+    table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 6px 10px; }
+    th { background: #eee; }
+    #stats { margin-top: 2em; }
+    #lunchStats, #drinkStats, #groupStats { display: none; }
+  </style>
+</head>
+<body>
+
+<h2>便當點餐系統（簡版）</h2>
+
+
+<p>工號：<input id="userId" /> <button id="loginBtn">登入</button></p>
+<p id="loginError" style="color:red;"></p>
+
+
+<div id="main" style="display:none;">
+  <p>歡迎 <span id="userName"></span></p>
+  <div class="row">
+    <div class="section" id="lunchBlock">
+      <h3>午餐</h3>
+      <select id="lunchStore">
+        <option value="">請選擇店家</option>
+        <option value="好吃便當">好吃便當</option>
+      </select>
+      <div id="lunchMenuWrapper"></div>
+      <div id="lunchSubmit" style="display:none;">
+        <input type="date" id="lunchDate" />
+        <button onclick="submitCategory('lunch')">送出午餐</button>
+      </div>
+    </div>
+    <div class="section" id="drinkBlock">
+      <h3>飲料</h3>
+      <select id="drinkStore">
+        <option value="">請選擇店家</option>
+        <option value="50嵐">50嵐</option>
+      </select>
+      <div id="drinkMenuWrapper"></div>
+      <div id="drinkSubmit" style="display:none;">
+        <input type="date" id="drinkDate" />
+        <button onclick="submitCategory('drink')">送出飲料</button>
+      </div>
+    </div>
+    <div class="section" id="groupBlock">
+      <h3>團購</h3>
+      <select id="groupStore">
+        <option value="">請選擇店家</option>
+        <option value="蝦皮團購">蝦皮團購</option>
+      </select>
+      <div id="groupMenuWrapper"></div>
+      <div id="groupSubmit" style="display:none;">
+        <input type="date" id="groupDate" />
+        <button onclick="submitCategory('group')">送出團購</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="stats">
+  <div id="lunchStats">
+    <h4>午餐統計</h4>
+    <table><thead><tr><th>日期</th><th>人員</th><th>餐點</th><th>價格</th></tr></thead><tbody id="lunchTable"></tbody></table>
+  </div>
+  <div id="drinkStats">
+    <h4>飲料統計</h4>
+    <table><thead><tr><th>日期</th><th>人員</th><th>餐點</th><th>價格</th></tr></thead><tbody id="drinkTable"></tbody></table>
+  </div>
+  <div id="groupStats">
+    <h4>團購統計</h4>
+    <table><thead><tr><th>日期</th><th>人員</th><th>餐點</th><th>價格</th></tr></thead><tbody id="groupTable"></tbody></table>
+  </div>
+</div>
+
+
+
+<script>
+
+const menuPrices = {
+  lunch: { "香雞排便當": 85, "魯肉飯": 70 },
+  drink: { "珍奶": 50, "紅茶": 45 },
+  group: { "文具組": 100, "餅乾包": 60 }
+};
+
+const menuData = {
+
+  lunch: { "好吃便當": ["香雞排便當", "魯肉飯"] },
+  drink: { "50嵐": ["珍奶", "紅茶"] },
+  group: { "蝦皮團購": ["文具組", "餅乾包"] }
+};
+
+let records = {};
+
+document.getElementById("loginBtn").addEventListener("click", () => {
+  const user = document.getElementById("userId").value.trim();
+  if (!user) return alert("請輸入工號");
+  document.getElementById("main").style.display = "block";
+  document.getElementById("userName").innerText = user;
+});
+
+["lunch", "drink", "group"].forEach(type => {
+  document.getElementById(type + "Store").addEventListener("change", () => {
+    const store = document.getElementById(type + "Store").value;
+    const wrapper = document.getElementById(type + "MenuWrapper");
+    const submitDiv = document.getElementById(type + "Submit");
+    wrapper.innerHTML = "";
+    submitDiv.style.display = "none";
+    if (menuData[type][store]) {
+      let html = "<table><tr><th>品項</th><th>選取</th></tr>";
+      for (const item of menuData[type][store]) {
+        html += `<tr><td>${item}</td><td><input type="radio" name="${type}Item" value="${item}"></td></tr>`;
+      }
+      html += "</table>";
+      wrapper.innerHTML = html;
+      submitDiv.style.display = "block";
+    }
+  });
+});
+
+
+function submitCategory(type) {
+  const user = document.getElementById("userName").innerText;
+  const date = document.getElementById(type + "Date").value;
+  const sel = document.querySelector(`input[name="${type}Item"]:checked`);
+  if (!sel || !date) return alert("請選擇餐點與日期");
+  const item = sel.value;
+  const price = menuPrices[type][item] || 0;
+  if (!records[type]) records[type] = [];
+  records[type].push({ user, date, item, price });
+  saveStorage();
+  renderStats();
+}
+
+  const user = document.getElementById("userName").innerText;
+  const date = document.getElementById(type + "Date").value;
+  const sel = document.querySelector(`input[name="${type}Item"]:checked`);
+  if (!sel || !date) return alert("請選擇餐點與日期");
+  const item = sel.value;
+  if (!records[type]) records[type] = [];
+  records[type].push({ user, date, item });
+  renderStats();
+}
+
+
+function saveStorage() {
+  localStorage.setItem("orderRecords", JSON.stringify(records));
+}
+
+function loadStorage() {
+  const stored = localStorage.getItem("orderRecords");
+  if (stored) {
+    try {
+      records = JSON.parse(stored);
+    } catch (e) {
+      records = {};
+    }
+  }
+}
+
+function renderStats() {
+
+  ["lunch", "drink", "group"].forEach(type => {
+    const table = document.getElementById(type + "Table");
+    const block = document.getElementById(type + "Stats");
+    table.innerHTML = "";
+    if (!records[type] || records[type].length === 0) {
+      block.style.display = "none";
+    } else {
+      block.style.display = "block";
+      table.innerHTML += `<tr><td colspan=3><strong>總金額：</strong></td><td>$${total}</td></tr>`;
+      let total = 0;
+      for (const row of records[type]) {
+        table.innerHTML += `<tr><td>${row.date}</td><td>${row.user}</td><td>${row.item}</td><td>$${row.price}</td></tr>`;
+        total += row.price;
+      }
+    }
+  });
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+  document.getElementById("loginBtn").addEventListener("click", function () {
+    const user = document.getElementById("userId").value.trim();
+    if (!user) {
+      document.getElementById("loginError").innerText = "請輸入工號";
+      return;
+    }
+    document.getElementById("loginError").innerText = "";
+    document.getElementById("main").style.display = "block";
+    document.getElementById("userName").innerText = user;
+    loadStorage();
+    renderStats();
+  });
+});
+</script>
+</body>
+</html>
