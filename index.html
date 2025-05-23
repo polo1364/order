@@ -1,19 +1,20 @@
+
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <title>午餐點餐系統</title>
+  <meta charset="UTF-8">
+  <title>午餐便當系統（同步版）</title>
   <style>
     body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 1em; }
     table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 6px 10px; }
     th { background: #f0f0f0; }
     @media print {
-      .delete-btn, #controls, #loginSection { display: none !important; }
+      .delete-btn, #loginSection, #controls { display: none !important; }
     }
   </style>
 </head>
 <body>
-  <h2>午餐點餐系統</h2>
+  <h2>午餐點餐系統（雲端同步）</h2>
   <div id="loginSection">
     工號：<input id="userId" />
     <button onclick="login()">登入</button>
@@ -49,15 +50,14 @@ const menuData = {
     "魚排飯": 80
   }
 };
-let records = [];
+let user = "";
 
 function login() {
-  const user = document.getElementById("userId").value.trim();
+  user = document.getElementById("userId").value.trim();
   if (!user) return alert("請輸入工號");
   document.getElementById("main").style.display = "block";
   document.getElementById("userName").innerText = user;
-  loadRecords();
-  renderStats();
+  fetchAndRenderStats();
 }
 
 function loadMenu() {
@@ -79,83 +79,86 @@ function loadMenu() {
   }
 }
 
+function generateId(date, user, item) {
+  return `${date}_${user}_${item}`;
+}
+
 function submitOrder() {
-  const user = document.getElementById("userName").innerText;
   const date = document.getElementById("orderDate").value;
   const store = document.getElementById("storeSelect").value;
   const sel = document.querySelector("input[name='menuItem']:checked");
   if (!user || !date || !store || !sel) return alert("請填寫所有欄位");
+
   const item = sel.value;
   const price = menuData[store][item];
-  records.push({ user, date, item, price });
-  saveRecords();
-  renderStats();
+  const id = generateId(date, user, item);
 
-  const encodedBody = "user=" + encodeURIComponent(user) +
-                      "&date=" + encodeURIComponent(date) +
-                      "&item=" + encodeURIComponent(item) +
-                      "&price=" + encodeURIComponent(price);
-
-  fetch("https://script.google.com/macros/s/AKfycbx9yFfFQatVYK0c5GVzQbwBQ5fxyeAF4gQc6CD50uhGUOarZ0TD83VkZCLYwjNySqc/exec", {
+  const body = `user=${encodeURIComponent(user)}&date=${encodeURIComponent(date)}&item=${encodeURIComponent(item)}&price=${encodeURIComponent(price)}&id=${encodeURIComponent(id)}`;
+  fetch("https://script.google.com/macros/s/AKfycbzJFVSSpPOHPr3M6t9jQgOtSnJ0PdrVqztgajFwGNXs74Yw5t9qZueRHBJm_T-f3oJY/exec", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body: encodedBody
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body
   })
   .then(res => res.text())
-  .then(msg => console.log("✅ 傳送成功", msg))
+  .then(msg => {
+    console.log("✅ 傳送成功", msg);
+    fetchAndRenderStats();
+  })
   .catch(err => console.error("❌ 傳送失敗", err));
 }
 
-function saveRecords() {
-  localStorage.setItem("lunchRecords", JSON.stringify(records));
-}
-function loadRecords() {
-  const data = localStorage.getItem("lunchRecords");
-  if (data) records = JSON.parse(data);
-}
-
-function renderStats() {
-  const stats = document.getElementById("stats");
-  stats.innerHTML = "";
-  if (records.length === 0) return stats.innerText = "尚無資料";
-
-  const grouped = {};
-  records.forEach((r, i) => {
-    if (!grouped[r.date]) grouped[r.date] = {};
-    if (!grouped[r.date][r.item]) grouped[r.date][r.item] = [];
-    grouped[r.date][r.item].push({ user: r.user, price: r.price, idx: i });
-  });
-
-  for (let date in grouped) {
-    const div = document.createElement("div");
-    div.innerHTML = "<h4>" + date + "</h4>";
-    const table = document.createElement("table");
-    table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
-    let total = 0;
-
-    for (let item in grouped[date]) {
-      const users = grouped[date][item];
-      const names = users.map(u => {
-        return u.user + (u.user === document.getElementById("userName").innerText
-          ? " <button class='delete-btn' onclick='deleteRecord(" + u.idx + ")'>刪除</button>" : "");
+function fetchAndRenderStats() {
+  fetch("https://script.google.com/macros/s/AKfycbzJFVSSpPOHPr3M6t9jQgOtSnJ0PdrVqztgajFwGNXs74Yw5t9qZueRHBJm_T-f3oJY/exec")
+    .then(res => res.json())
+    .then(data => {
+      const grouped = {};
+      data.forEach((r, idx) => {
+        const id = generateId(r.date, r.user, r.item);
+        if (!grouped[r.date]) grouped[r.date] = {};
+        if (!grouped[r.date][r.item]) grouped[r.date][r.item] = [];
+        grouped[r.date][r.item].push({ ...r, id });
       });
-      total += users.length * users[0].price;
-      const row = "<tr><td>" + item + "</td><td>" + names.join("、") + "</td><td>" + users.length + "</td></tr>";
-      table.innerHTML += row;
-    }
 
-    table.innerHTML += "<tr><td colspan='2'>總金額</td><td>$" + total + "</td></tr>";
-    div.appendChild(table);
-    stats.appendChild(div);
-  }
+      const stats = document.getElementById("stats");
+      stats.innerHTML = "";
+      for (let date in grouped) {
+        const div = document.createElement("div");
+        div.innerHTML = `<h4>${date}</h4>`;
+        const table = document.createElement("table");
+        table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
+        let total = 0;
+
+        for (let item in grouped[date]) {
+          const users = grouped[date][item];
+          total += users.length * users[0].price;
+          const names = users.map(u => {
+            const btn = u.user === user ? ` <button class='delete-btn' onclick='deleteRecord("${u.id}")'>刪除</button>` : "";
+            return u.user + btn;
+          });
+          table.innerHTML += `<tr><td>${item}</td><td>${names.join("、")}</td><td>${users.length}</td></tr>`;
+        }
+
+        table.innerHTML += `<tr><td colspan="2">總金額</td><td>$${total}</td></tr>`;
+        div.appendChild(table);
+        stats.appendChild(div);
+      }
+    });
 }
 
-function deleteRecord(index) {
-  records.splice(index, 1);
-  saveRecords();
-  renderStats();
+function deleteRecord(id) {
+  if (!confirm("確定要刪除這筆紀錄？")) return;
+  const body = `action=delete&id=${encodeURIComponent(id)}`;
+  fetch("https://script.google.com/macros/s/AKfycbzJFVSSpPOHPr3M6t9jQgOtSnJ0PdrVqztgajFwGNXs74Yw5t9qZueRHBJm_T-f3oJY/exec", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body
+  })
+  .then(res => res.text())
+  .then(msg => {
+    console.log("✅ 刪除成功", msg);
+    fetchAndRenderStats();
+  })
+  .catch(err => console.error("❌ 刪除失敗", err));
 }
 </script>
 </body>
