@@ -1,98 +1,22 @@
-
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>便當點餐系統</title>
-  <style>
-    body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 1em; }
-    table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 6px 10px; }
-    th { background: #f0f0f0; }
-    @media print {
-      body * { visibility: hidden; }
-      #stats, #stats * { visibility: visible; }
-      #stats { position: absolute; top: 0; left: 0; width: 100%; }
-      .delete-btn { display: none !important; }
-    }
-  </style>
+  <title>便當送出（中繼）測試</title>
 </head>
 <body>
-  <h2>便當點餐系統</h2>
-  <p>工號：<input id="userId" /> <button onclick="login()">登入</button></p>
-  <div id="main" style="display:none;">
-    <p>歡迎使用者：<span id="userName"></span></p>
-    <label>選擇店家：
-      <select id="storeSelect" onchange="loadMenu()">
-        <option value="">請選擇</option>
-        <option value="好吃便當">好吃便當</option>
-      </select>
-    </label>
-    <div id="menuArea"></div>
-    <div id="dateArea" style="display:none;">
-      <input type="date" id="orderDate" />
-      <button onclick="submitOrder()">送出</button>
-    </div>
-    <button onclick="window.print()">列印統計表</button>
-  </div>
-
-  <h3>統計結果</h3>
-  <div id="stats"></div>
+  <h2>中繼測試按鈕</h2>
+  <button onclick="send()">送出測試資料</button>
+  <pre id="log"></pre>
 
 <script>
-const menuData = {
-  "好吃便當": {
-    "雞腿便當": 85,
-    "排骨飯": 75
-  }
-};
-let records = [];
+function send() {
+  const encodedBody = "user=" + encodeURIComponent("中繼用戶") +
+                      "&date=" + encodeURIComponent("2025-05-24") +
+                      "&item=" + encodeURIComponent("雞腿便當") +
+                      "&price=" + encodeURIComponent("85");
 
-function login() {
-  const user = document.getElementById("userId").value.trim();
-  if (!user) return alert("請輸入工號");
-  document.getElementById("main").style.display = "block";
-  document.getElementById("userName").innerText = user;
-  loadRecords();
-  renderStats();
-}
-
-function loadMenu() {
-  const store = document.getElementById("storeSelect").value;
-  const menu = menuData[store];
-  const menuArea = document.getElementById("menuArea");
-  const dateArea = document.getElementById("dateArea");
-  menuArea.innerHTML = "";
-  dateArea.style.display = "none";
-
-  if (menu) {
-    let html = "<table><thead><tr><th>品項</th><th>選取</th></tr></thead><tbody>";
-    for (let item in menu) {
-      html += "<tr><td>" + item + "</td><td><input type='radio' name='menuItem' value='" + item + "'></td></tr>";
-    }
-    html += "</tbody></table>";
-    menuArea.innerHTML = html;
-    dateArea.style.display = "block";
-  }
-}
-
-function submitOrder() {
-  const user = document.getElementById("userName").innerText;
-  const date = document.getElementById("orderDate").value;
-  const store = document.getElementById("storeSelect").value;
-  const sel = document.querySelector("input[name='menuItem']:checked");
-  if (!user || !date || !store || !sel) return alert("請填寫所有欄位");
-  const item = sel.value;
-  const price = menuData[store][item];
-  records.push({ user, date, item, price });
-  saveRecords();
-  renderStats();
-
-  const encodedBody = "user=" + encodeURIComponent(user) +
-                      "&date=" + encodeURIComponent(date) +
-                      "&item=" + encodeURIComponent(item) +
-                      "&price=" + encodeURIComponent(price);
-
-  fetch("https://script.google.com/macros/s/AKfycbwXHDbdfydmqAn56mYR7XiHcPuw3GDN55Ui11fQ311c0NxpWJjcvC7twU91XA87PkkK/exec", {
+  fetch("https://https://script.google.com/macros/s/AKfycbw7OAO8r1iLbtrNn4NS_eGxIDkZnThXpo6WLjqmhjO6uVJDAPL1AkJdCmP9lduIV-gV/exec", {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded"
@@ -100,58 +24,8 @@ function submitOrder() {
     body: encodedBody
   })
   .then(res => res.text())
-  .then(msg => console.log("✅ 傳送成功", msg))
-  .catch(err => console.error("❌ 傳送失敗", err));
-}
-
-function saveRecords() {
-  localStorage.setItem("lunchRecords", JSON.stringify(records));
-}
-function loadRecords() {
-  const data = localStorage.getItem("lunchRecords");
-  if (data) records = JSON.parse(data);
-}
-
-function renderStats() {
-  const stats = document.getElementById("stats");
-  stats.innerHTML = "";
-  if (records.length === 0) return stats.innerText = "尚無資料";
-
-  const grouped = {};
-  records.forEach((r, i) => {
-    if (!grouped[r.date]) grouped[r.date] = {};
-    if (!grouped[r.date][r.item]) grouped[r.date][r.item] = [];
-    grouped[r.date][r.item].push({ user: r.user, price: r.price, idx: i });
-  });
-
-  for (let date in grouped) {
-    const div = document.createElement("div");
-    div.innerHTML = "<h4>" + date + "</h4>";
-    const table = document.createElement("table");
-    table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
-    let total = 0;
-
-    for (let item in grouped[date]) {
-      const users = grouped[date][item];
-      const names = users.map(u => {
-        return u.user + (u.user === document.getElementById("userName").innerText
-          ? " <button class='delete-btn' onclick='deleteRecord(" + u.idx + ")'>刪除</button>" : "");
-      });
-      total += users.length * users[0].price;
-      const row = "<tr><td>" + item + "</td><td>" + names.join("、") + "</td><td>" + users.length + "</td></tr>";
-      table.innerHTML += row;
-    }
-
-    table.innerHTML += "<tr><td colspan='2'>總金額</td><td>$" + total + "</td></tr>";
-    div.appendChild(table);
-    stats.appendChild(div);
-  }
-}
-
-function deleteRecord(index) {
-  records.splice(index, 1);
-  saveRecords();
-  renderStats();
+  .then(msg => document.getElementById("log").innerText = "✅ 成功：" + msg)
+  .catch(err => document.getElementById("log").innerText = "❌ 失敗：" + err);
 }
 </script>
 </body>
