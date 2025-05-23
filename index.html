@@ -94,7 +94,7 @@ function submitOrder() {
   const id = generateId(date, user, item);
 
   const body = `user=${encodeURIComponent(user)}&date=${encodeURIComponent(date)}&item=${encodeURIComponent(item)}&price=${encodeURIComponent(price)}&id=${encodeURIComponent(id)}`;
-  fetch("https://script.google.com/macros/s/AKfycbzJFVSSpPOHPr3M6t9jQgOtSnJ0PdrVqztgajFwGNXs74Yw5t9qZueRHBJm_T-f3oJY/exec", {
+  fetch("https://script.google.com/macros/s/AKfycbx9yFfFQatVYK0c5GVzQbwBQ5fxyeAF4gQc6CD50uhGUOarZ0TD83VkZCLYwjNySqc/exec", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body
@@ -108,7 +108,7 @@ function submitOrder() {
 }
 
 function fetchAndRenderStats() {
-  fetch("https://script.google.com/macros/s/AKfycbzJFVSSpPOHPr3M6t9jQgOtSnJ0PdrVqztgajFwGNXs74Yw5t9qZueRHBJm_T-f3oJY/exec?t=" + Date.now())
+  fetch("https://script.google.com/macros/s/AKfycbx9yFfFQatVYK0c5GVzQbwBQ5fxyeAF4gQc6CD50uhGUOarZ0TD83VkZCLYwjNySqc/exec?t=" + Date.now())
     .then(res => res.json())
     .then(data => {
       const grouped = {};
@@ -148,7 +148,7 @@ function fetchAndRenderStats() {
 function deleteRecord(id) {
   if (!confirm("確定要刪除這筆紀錄？")) return;
   const body = `action=delete&id=${encodeURIComponent(id)}`;
-  fetch("https://script.google.com/macros/s/AKfycbzJFVSSpPOHPr3M6t9jQgOtSnJ0PdrVqztgajFwGNXs74Yw5t9qZueRHBJm_T-f3oJY/exec", {
+  fetch("https://script.google.com/macros/s/AKfycbx9yFfFQatVYK0c5GVzQbwBQ5fxyeAF4gQc6CD50uhGUOarZ0TD83VkZCLYwjNySqc/exec", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body
