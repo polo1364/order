@@ -3,7 +3,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>午餐便當系統（同步＋刪除修正版）</title>
+  <title>便當點餐系統</title>
   <style>
     body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 1em; }
     table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 6px 10px; }
@@ -14,17 +14,15 @@
   </style>
 </head>
 <body>
-  <h2>午餐點餐系統（雲端同步）</h2>
+  <h2>便當點餐系統（同步統計＋刪除）</h2>
   <div id="loginSection">
     工號：<input id="userId" />
     <button onclick="login()">登入</button>
   </div>
-
   <div id="main" style="display:none;">
     <p>歡迎使用者：<span id="userName"></span></p>
-
     <div id="controls">
-      <label>選擇店家：
+      <label>店家：
         <select id="storeSelect" onchange="loadMenu()">
           <option value="">請選擇</option>
           <option value="好吃便當">好吃便當</option>
@@ -38,20 +36,13 @@
       <button onclick="window.print()">列印統計表</button>
     </div>
   </div>
-
   <h3>統計結果</h3>
   <div id="stats"></div>
-
 <script>
 const menuData = {
-  "好吃便當": {
-    "雞腿便當": 85,
-    "排骨飯": 75,
-    "魚排飯": 80
-  }
+  "好吃便當": { "雞腿便當": 85, "排骨飯": 75, "魚排飯": 80 }
 };
 let user = "";
-
 function login() {
   user = document.getElementById("userId").value.trim();
   if (!user) return alert("請輸入工號");
@@ -59,7 +50,6 @@ function login() {
   document.getElementById("userName").innerText = user;
   fetchAndRenderStats();
 }
-
 function loadMenu() {
   const store = document.getElementById("storeSelect").value;
   const menu = menuData[store];
@@ -67,58 +57,48 @@ function loadMenu() {
   const dateArea = document.getElementById("dateArea");
   menuArea.innerHTML = "";
   dateArea.style.display = "none";
-
   if (menu) {
     let html = "<table><thead><tr><th>品項</th><th>選取</th></tr></thead><tbody>";
     for (let item in menu) {
-      html += "<tr><td>" + item + "</td><td><input type='radio' name='menuItem' value='" + item + "'></td></tr>";
+      html += `<tr><td>${item}</td><td><input type='radio' name='menuItem' value='${item}'></td></tr>`;
     }
     html += "</tbody></table>";
     menuArea.innerHTML = html;
     dateArea.style.display = "block";
   }
 }
-
 function generateId(date, user, item) {
   return `${date}_${user}_${item}`;
 }
-
 function submitOrder() {
   const date = document.getElementById("orderDate").value;
   const store = document.getElementById("storeSelect").value;
   const sel = document.querySelector("input[name='menuItem']:checked");
   if (!user || !date || !store || !sel) return alert("請填寫所有欄位");
-
   const item = sel.value;
   const price = menuData[store][item];
   const id = generateId(date, user, item);
-
   const body = `user=${encodeURIComponent(user)}&date=${encodeURIComponent(date)}&item=${encodeURIComponent(item)}&price=${encodeURIComponent(price)}&id=${encodeURIComponent(id)}`;
   fetch("https://script.google.com/macros/s/AKfycbx9yFfFQatVYK0c5GVzQbwBQ5fxyeAF4gQc6CD50uhGUOarZ0TD83VkZCLYwjNySqc/exec", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body
-  })
-  .then(res => res.text())
-  .then(msg => {
+  }).then(res => res.text()).then(msg => {
     console.log("✅ 傳送成功", msg);
-    setTimeout(fetchAndRenderStats, 300); // 延遲讓試算表寫入完成再抓統計
-  })
-  .catch(err => console.error("❌ 傳送失敗", err));
+    setTimeout(fetchAndRenderStats, 300);
+  }).catch(err => console.error("❌ 傳送失敗", err));
 }
-
 function fetchAndRenderStats() {
   fetch("https://script.google.com/macros/s/AKfycbx9yFfFQatVYK0c5GVzQbwBQ5fxyeAF4gQc6CD50uhGUOarZ0TD83VkZCLYwjNySqc/exec?t=" + Date.now())
     .then(res => res.json())
     .then(data => {
       const grouped = {};
-      data.forEach((r, idx) => {
+      data.forEach(r => {
         const id = generateId(r.date, r.user, r.item);
         if (!grouped[r.date]) grouped[r.date] = {};
         if (!grouped[r.date][r.item]) grouped[r.date][r.item] = [];
         grouped[r.date][r.item].push({ ...r, id });
       });
-
       const stats = document.getElementById("stats");
       stats.innerHTML = "";
       for (let date in grouped) {
@@ -127,7 +107,6 @@ function fetchAndRenderStats() {
         const table = document.createElement("table");
         table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
         let total = 0;
-
         for (let item in grouped[date]) {
           const users = grouped[date][item];
           total += users.length * users[0].price;
@@ -137,14 +116,12 @@ function fetchAndRenderStats() {
           });
           table.innerHTML += `<tr><td>${item}</td><td>${names.join("、")}</td><td>${users.length}</td></tr>`;
         }
-
         table.innerHTML += `<tr><td colspan="2">總金額</td><td>$${total}</td></tr>`;
         div.appendChild(table);
         stats.appendChild(div);
       }
     });
 }
-
 function deleteRecord(id) {
   if (!confirm("確定要刪除這筆紀錄？")) return;
   const body = `action=delete&id=${encodeURIComponent(id)}`;
@@ -152,13 +129,10 @@ function deleteRecord(id) {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body
-  })
-  .then(res => res.text())
-  .then(msg => {
+  }).then(res => res.text()).then(msg => {
     console.log("✅ 刪除成功", msg);
     fetchAndRenderStats();
-  })
-  .catch(err => console.error("❌ 刪除失敗", err));
+  }).catch(err => console.error("❌ 刪除失敗", err));
 }
 </script>
 </body>
