@@ -123,13 +123,6 @@ function deleteRecord(index) {
   records.splice(index, 1);
   saveRecords();
   renderStats();
-    fetch("https://script.google.com/macros/s/AKfycbxbeX3JbUDjHkLEtK5IqBZcfNCskxMYFk-HYSinw9yYK5n7LQxRix19Oj5HduHN-y9y/exec", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify([{ user, date, item, price }])
-    }).then(res => res.text()).then(msg => console.log("寫入 Google Sheets 成功：", msg)).catch(err => console.error("寫入失敗", err));
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -143,13 +136,6 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("userName").innerText = user;
     loadRecords();
     renderStats();
-    fetch("https://script.google.com/macros/s/AKfycbxbeX3JbUDjHkLEtK5IqBZcfNCskxMYFk-HYSinw9yYK5n7LQxRix19Oj5HduHN-y9y/exec", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify([{ user, date, item, price }])
-    }).then(res => res.text()).then(msg => console.log("寫入 Google Sheets 成功：", msg)).catch(err => console.error("寫入失敗", err));
   });
 
   document.getElementById("lunchStore").addEventListener("change", function () {
@@ -170,7 +156,10 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("lunchBtn").addEventListener("click", function () {
+  
+// ⚠️ 注意：這一版需部署於 HTTPS 網址（如 GitHub Pages）才能避免 CORS 問題
+document.querySelector("#lunchSubmit")?.addEventListener("click", function (e) {
+  if (e.target.id === "lunchBtn") {
     const user = document.getElementById("userName").innerText;
     const date = document.getElementById("lunchDate").value;
     const store = document.getElementById("lunchStore").value;
@@ -184,13 +173,31 @@ document.addEventListener("DOMContentLoaded", function () {
     records.push({ user, date, item, price });
     saveRecords();
     renderStats();
+
+    // ✅ 傳送到 Google 試算表
     fetch("https://script.google.com/macros/s/AKfycbxbeX3JbUDjHkLEtK5IqBZcfNCskxMYFk-HYSinw9yYK5n7LQxRix19Oj5HduHN-y9y/exec", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
       body: JSON.stringify([{ user, date, item, price }])
-    }).then(res => res.text()).then(msg => console.log("寫入 Google Sheets 成功：", msg)).catch(err => console.error("寫入失敗", err));
+    }).then(res => res.text()).then(msg => console.log("✅ 寫入 Google Sheets 成功", msg))
+      .catch(err => console.error("❌ 寫入失敗", err));
+  }
+});
+    const user = document.getElementById("userName").innerText;
+    const date = document.getElementById("lunchDate").value;
+    const store = document.getElementById("lunchStore").value;
+    const sel = document.querySelector(`input[name="lunchItem"]:checked`);
+    if (!user || !date || !store || !sel) {
+      alert("請確認所有欄位都已選擇");
+      return;
+    }
+    const item = sel.value;
+    const price = menuData[store][item];
+    records.push({ user, date, item, price });
+    saveRecords();
+    renderStats();
   });
 
   document.getElementById("exportBtn").addEventListener("click", function () {
