@@ -165,15 +165,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // ✅ 傳送資料到 Google 試算表
         fetch("https://script.google.com/macros/s/AKfycbxbeX3JbUDjHkLEtK5IqBZcfNCskxMYFk-HYSinw9yYK5n7LQxRix19Oj5HduHN-y9y/exec", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify([{ user, date, item, price }])
-        })
-        .then(res => res.text())
-        .then(msg => console.log("✅ 寫入成功", msg))
-        .catch(err => console.error("❌ 寫入失敗", err));
+  method: "POST",
+  headers: {
+    "Content-Type": "application/x-www-form-urlencoded"
+  },
+  body: `user=${encodeURIComponent(user)}&date=${encodeURIComponent(date)}&item=${encodeURIComponent(item)}&price=${price}`
+})
+.then(res => res.text())
+.then(msg => console.log("✅ 寫入成功", msg))
+.catch(err => console.error("❌ 寫入失敗", err));
+
       };
     }
   });
