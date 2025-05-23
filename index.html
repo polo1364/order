@@ -5,20 +5,19 @@
   <meta charset="UTF-8" />
   <title>午餐點餐系統</title>
   <style>
-@media print {
-  .delete-btn { display: none !important; }
-  body * { visibility: hidden; }
-  #stats, #stats * { visibility: visible; }
-  #stats { position: absolute; top: 0; left: 0; width: 100%; }
-}
-
     body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 1em; }
     table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 6px 10px; }
     th { background: #f0f0f0; }
     .block { margin-top: 1em; }
+    .delete-btn { margin-left: 4px; }
     @media (max-width: 600px) {
-      body { padding: 0.5em; }
-      table { font-size: 14px; }
+      body { padding: 0.5em; font-size: 14px; }
+    }
+    @media print {
+      body * { visibility: hidden; }
+      #stats, #stats * { visibility: visible; }
+      #stats { position: absolute; top: 0; left: 0; width: 100%; }
+      .delete-btn { display: none !important; }
     }
   </style>
 </head>
@@ -29,7 +28,6 @@
 
   <div id="main" style="display:none;">
     <p>歡迎使用者：<span id="userName"></span></p>
-    <h3>午餐</h3>
     <select id="lunchStore">
       <option value="">請選擇店家</option>
       <option value="好吃便當">好吃便當</option>
@@ -39,13 +37,11 @@
       <input type="date" id="lunchDate" />
       <button id="lunchBtn">送出午餐</button>
     </div>
-  </div>
-
-  <div class="block">
-    <h3>統計結果</h3>
-    <div id="stats"></div>
     <button onclick="window.print()">列印統計表</button>
   </div>
+
+  <h3>統計結果</h3>
+  <div id="stats"></div>
 
 <script>
 const menuData = {
@@ -91,7 +87,7 @@ function renderStats() {
     const section = document.createElement("div");
     section.innerHTML = `<h4>${date}</h4>`;
     const table = document.createElement("table");
-    table.innerHTML = "<thead><tr><th>品項</th><th>人員</th><th>數量</th></tr></thead><tbody></tbody>";
+    table.innerHTML = "<thead><tr><th>品項</th><th>人員</th><th>數量</th></thead><tbody></tbody>";
     const tbody = table.querySelector("tbody");
     let total = 0;
 
@@ -119,14 +115,13 @@ function renderStats() {
 }
 
 function deleteRecord(index) {
-  if (!confirm("確定要刪除這筆紀錄嗎？")) return;
   records.splice(index, 1);
   saveRecords();
   renderStats();
 }
 
-document.addEventListener("DOMContentLoaded", function () {
-  document.getElementById("loginBtn").addEventListener("click", function () {
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("loginBtn").addEventListener("click", () => {
     const user = document.getElementById("userId").value.trim();
     if (!user) {
       document.getElementById("loginError").innerText = "請輸入工號";
@@ -153,66 +148,36 @@ document.addEventListener("DOMContentLoaded", function () {
       html += "</tbody></table>";
       menuWrapper.innerHTML = html;
       submitDiv.style.display = "block";
-    }
-  });
 
-  
-// ⚠️ 注意：這一版需部署於 HTTPS 網址（如 GitHub Pages）才能避免 CORS 問題
-document.querySelector("#lunchSubmit")?.addEventListener("click", function (e) {
-  if (e.target.id === "lunchBtn") {
-    const user = document.getElementById("userName").innerText;
-    const date = document.getElementById("lunchDate").value;
-    const store = document.getElementById("lunchStore").value;
-    const sel = document.querySelector(`input[name="lunchItem"]:checked`);
-    if (!user || !date || !store || !sel) {
-      alert("請確認所有欄位都已選擇");
-      return;
-    }
-    const item = sel.value;
-    const price = menuData[store][item];
-    records.push({ user, date, item, price });
-    saveRecords();
-    renderStats();
+      document.getElementById("lunchBtn").onclick = function () {
+        const user = document.getElementById("userName").innerText;
+        const date = document.getElementById("lunchDate").value;
+        const sel = document.querySelector('input[name="lunchItem"]:checked');
+        if (!user || !date || !store || !sel) {
+          alert("請確認所有欄位都已選擇");
+          return;
+        }
+        const item = sel.value;
+        const price = menuData[store][item];
+        records.push({ user, date, item, price });
+        saveRecords();
+        renderStats();
 
-    // ✅ 傳送到 Google 試算表
-    fetch("https://script.google.com/macros/s/AKfycbxbeX3JbUDjHkLEtK5IqBZcfNCskxMYFk-HYSinw9yYK5n7LQxRix19Oj5HduHN-y9y/exec", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify([{ user, date, item, price }])
-    }).then(res => res.text()).then(msg => console.log("✅ 寫入 Google Sheets 成功", msg))
-      .catch(err => console.error("❌ 寫入失敗", err));
-  }
-});
-    const user = document.getElementById("userName").innerText;
-    const date = document.getElementById("lunchDate").value;
-    const store = document.getElementById("lunchStore").value;
-    const sel = document.querySelector(`input[name="lunchItem"]:checked`);
-    if (!user || !date || !store || !sel) {
-      alert("請確認所有欄位都已選擇");
-      return;
+        // ✅ 傳送資料到 Google 試算表
+        fetch("https://script.google.com/macros/s/AKfycbxbeX3JbUDjHkLEtK5IqBZcfNCskxMYFk-HYSinw9yYK5n7LQxRix19Oj5HduHN-y9y/exec", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify([{ user, date, item, price }])
+        })
+        .then(res => res.text())
+        .then(msg => console.log("✅ 寫入成功", msg))
+        .catch(err => console.error("❌ 寫入失敗", err));
+      };
     }
-    const item = sel.value;
-    const price = menuData[store][item];
-    records.push({ user, date, item, price });
-    saveRecords();
-    renderStats();
-  });
-
-  document.getElementById("exportBtn").addEventListener("click", function () {
-    let csv = "日期,使用者,品項,價格\n";
-    records.forEach(r => {
-      csv += `${r.date},${r.user},${r.item},${r.price}\n`;
-    });
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "午餐統計.csv";
-    a.click();
   });
 });
-  }
 </script>
 </body>
 </html>
