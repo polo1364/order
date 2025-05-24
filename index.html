@@ -178,25 +178,21 @@ db.ref('orders').on('value', snapshot => {
       // 統計同人多次點餐 & 合併備註
       const userCount = {};
       users.forEach(u => {
-        if (!userCount[u.user]) userCount[u.user] = { count: 0, notes: [] };
+        if (!userCount[u.user]) userCount[u.user] = { count: 0, notes: [], ids: [] };
         userCount[u.user].count++;
         if (u.note) userCount[u.user].notes.push(u.note);
+        if (u.user === user) userCount[u.user].ids.push(u.id);
       });
 
       const names = Object.entries(userCount).map(([name, obj]) => {
         const notesText = obj.notes.length > 0 ? `（${obj.notes.join("、")}）` : "";
-        const delBtns = users
-          .filter(u => u.user === name && u.user === user)
-          .map(u => `<button class='delete-btn' onclick='deleteRecord("${date}","${u.id}")'>刪除</button>`)
-          .join("");
-        return obj.count > 1 ? `${name}${notesText}（共${obj.count}份） ${delBtns}` : `${name}${notesText} ${delBtns}`;
+        // 只顯示一次刪除鈕（即便同人有多筆）
+        const delBtn = (obj.ids.length > 0) ?
+          `<button class='delete-btn' onclick='deleteRecord("${date}","${obj.ids[0]}")'>刪除</button>` : "";
+        return obj.count > 1 ? `${name}${notesText}（共${obj.count}份） ${delBtn}` : `${name}${notesText} ${delBtn}`;
       });
 
-      table.innerHTML += `<tr>
-        <td>${item}</td>
-        <td>${names.join("、")}</td>
-        <td>${users.length}</td>
-      </tr>`;
+      table.innerHTML += `<tr><td>${item}</td><td>${names.join("、")}</td><td>${users.length}</td></tr>`;
     }
 
     table.innerHTML += `<tr><td colspan="2">總金額</td><td>$${total}</td></tr>`;
