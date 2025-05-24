@@ -158,16 +158,18 @@ db.ref('orders').on('value', snapshot => {
       const users = grouped[item];
       total += users.length * users[0].price;
 
-      // 進階處理：使用者去重複 + 顯示次數
+      // 進階處理：使用者統計
       const userCount = {};
       users.forEach(u => {
         if (!userCount[u.user]) userCount[u.user] = 0;
         userCount[u.user]++;
       });
 
+      // 顯示：若該使用者超過1份，才顯示 (共x份)
       const names = Object.entries(userCount).map(([name, count]) => {
+        const countStr = count > 1 ? `（共${count}份）` : '';
         const btn = name === user ? ` <button class='delete-btn' onclick='deleteRecord("${date}","${users.find(u => u.user === name).id}")'>刪除</button>` : "";
-        return `${name}（共${count}份）${btn}`;
+        return `${name}${countStr}${btn}`;
       });
 
       table.innerHTML += `<tr><td>${item}</td><td>${names.join("、")}</td><td>${users.length}</td></tr>`;
