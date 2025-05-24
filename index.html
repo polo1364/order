@@ -37,6 +37,7 @@
 </div>
 <h3>即時統計</h3>
 <div id="stats"></div>
+
 <script>
 const firebaseConfig = {
   databaseURL: "https://bento-5bb36-default-rtdb.firebaseio.com/"
@@ -45,12 +46,14 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const menuData = { "好吃便當": { "雞腿便當": 85, "排骨飯": 75, "魚排飯": 80 } };
 let user = "";
+
 function login() {
   user = document.getElementById('userId').value.trim();
   if (!user) return alert("請輸入工號！");
   document.getElementById('main').style.display = "block";
   document.getElementById('userName').innerText = user;
 }
+
 function loadMenu() {
   const store = document.getElementById('storeSelect').value;
   const menu = menuData[store];
@@ -68,6 +71,7 @@ function loadMenu() {
     dateArea.style.display = "block";
   }
 }
+
 function submitOrder() {
   const date = document.getElementById('orderDate').value;
   const store = document.getElementById('storeSelect').value;
@@ -78,6 +82,14 @@ function submitOrder() {
   const key = db.ref('orders/' + date).push().key;
   db.ref('orders/' + date + '/' + key).set({ user, item, price });
 }
+
+function deleteRecord(date, id) {
+  if (!confirm("確定要刪除這筆紀錄？")) return;
+  db.ref('orders/' + date + '/' + id).remove()
+    .then(() => console.log("✅ 刪除成功"))
+    .catch(err => console.error("❌ 刪除失敗", err));
+}
+
 db.ref('orders').on('value', snapshot => {
   const stats = document.getElementById('stats');
   stats.innerHTML = '';
@@ -90,15 +102,19 @@ db.ref('orders').on('value', snapshot => {
     table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
     const grouped = {};
     for (let id in data[date]) {
-      const { user, item, price } = data[date][id];
+      const { user, item } = data[date][id];
       if (!grouped[item]) grouped[item] = [];
-      grouped[item].push(user);
+      grouped[item].push({ user, id });
     }
     let total = 0;
     for (let item in grouped) {
       const users = grouped[item];
       total += users.length * menuData["好吃便當"][item];
-      table.innerHTML += `<tr><td>${item}</td><td>${users.join("、")}</td><td>${users.length}</td></tr>`;
+      const names = users.map(u => {
+        const btn = u.user === user ? ` <button class='delete-btn' onclick='deleteRecord("${date}", "${u.id}")'>刪除</button>` : "";
+        return u.user + btn;
+      });
+      table.innerHTML += `<tr><td>${item}</td><td>${names.join("、")}</td><td>${users.length}</td></tr>`;
     }
     table.innerHTML += `<tr><td colspan="2">總金額</td><td>$${total}</td></tr>`;
     div.appendChild(table);
