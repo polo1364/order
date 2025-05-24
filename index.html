@@ -158,15 +158,27 @@ db.ref('orders').on('value', snapshot => {
       continue;
     }
 
+    // 取得星期幾
+    const weekday = ["日", "一", "二", "三", "四", "五", "六"];
+    const weekdayStr = `星期${weekday[dateObj.getDay()]}`;
+
+    // 統計當天所有店家（假設有 store 欄位）
+    const storeNames = new Set();
+    for (let id in data[date]) {
+      if (data[date][id].store) {
+        storeNames.add(data[date][id].store);
+      }
+    }
+    const storeNameStr = storeNames.size > 0 ? `店家：${Array.from(storeNames).join("、")}` : "";
+
     const div = document.createElement('div');
-    div.innerHTML = `<h4>${date}</h4>`;
+    div.innerHTML = `<h4>${date}（${weekdayStr}） ${storeNameStr}</h4>`;
     const table = document.createElement('table');
     table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
 
     const grouped = {};
     for (let id in data[date]) {
       const { user: u, item, price, note } = data[date][id];
-      // 「品項 + 備註」當作唯一 key，備註空字串時用 ""，確保不會合併
       const key = note ? `${item}__${note}` : `${item}__`;
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push({ user: u, id, price, note });
@@ -178,7 +190,6 @@ db.ref('orders').on('value', snapshot => {
       total += users.length * users[0].price;
 
       const [item, note] = key.split('__');
-      // 統計同人多次
       const userCount = {};
       users.forEach(u => {
         if (!userCount[u.user]) userCount[u.user] = { count: 0, ids: [] };
@@ -186,14 +197,12 @@ db.ref('orders').on('value', snapshot => {
         if (u.user === user) userCount[u.user].ids.push(u.id);
       });
 
-      // 人名、刪除鈕一次
       const names = Object.entries(userCount).map(([name, obj]) => {
         const delBtn = (obj.ids.length > 0) ?
           `<button class='delete-btn' onclick='deleteRecord("${date}","${obj.ids[0]}")'>刪除</button>` : "";
         return obj.count > 1 ? `${name}（共${obj.count}份） ${delBtn}` : `${name} ${delBtn}`;
       });
 
-      // 備註在「人員欄」旁邊顯示（若有填）
       const noteText = note ? `（${note}）` : "";
       table.innerHTML += `<tr><td>${item}</td><td>${names.join("、")}${noteText}</td><td>${users.length}</td></tr>`;
     }
@@ -201,7 +210,6 @@ db.ref('orders').on('value', snapshot => {
     table.innerHTML += `<tr><td colspan="2">總金額</td><td>$${total}</td></tr>`;
     div.appendChild(table);
 
-    // 加上「只列印這天」按鈕
     const printBtn = document.createElement('button');
     printBtn.classList.add('print-btn');
     printBtn.innerText = `列印 ${date} 統計表`;
