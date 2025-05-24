@@ -189,17 +189,18 @@ db.ref('orders').on('value', snapshot => {
           userCount[u.user].ids.push(u.id);
         });
 
-        const names = Object.entries(userCount).map(([name, obj]) => {
+        // 格子顯示每個人
+        const userCells = Object.entries(userCount).map(([name, obj]) => {
           const uniqueNotes = [...new Set(obj.notes.filter(n => n))];
-          const noteText = uniqueNotes.length > 0 ? `<br>（${uniqueNotes.join("、")}）` : "";
+          const noteText = uniqueNotes.length > 0 ? `（${uniqueNotes.join("、")}）` : "";
           const delBtn = name === user ? 
             `<button class='delete-btn' onclick='deleteRecord("${date}","${obj.ids[0]}")'>刪除</button>` : "";
-          return obj.count > 1
-            ? `${name}（共${obj.count}份）${noteText} ${delBtn}`
-            : `${name}${noteText} ${delBtn}`;
-        });
+          return `<div style="border: 1px solid #ccc; padding: 2px; margin: 2px; display: inline-block;">
+                    ${name}${obj.count > 1 ? `（共${obj.count}份）` : ""}${noteText} ${delBtn}
+                  </div>`;
+        }).join("");
 
-        table.innerHTML += `<tr><td>${item}</td><td>${names.join("<br>")}</td><td>${users.length}</td></tr>`;
+        table.innerHTML += `<tr><td>${item}</td><td>${userCells}</td><td>${users.length}</td></tr>`;
       }
 
       table.innerHTML += `<tr><td colspan="2">總金額</td><td>$${total}</td></tr>`;
