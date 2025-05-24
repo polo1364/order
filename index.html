@@ -11,9 +11,29 @@
   table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 4px 8px; }
   th { background: #eee; }
   .hidden { display: none; }
+
+  /* 列印版面優化 */
   @media print {
-    body * { display: none; }
-    #stats, #stats * { display: block; }
+    html, body {
+      margin: 0;
+      padding: 0;
+    }
+    #loginSection, #controls, #menuArea, h2, #main p, #storeSelect, #orderDate, button:not(.print-btn) {
+      display: none !important;
+    }
+    #stats {
+      margin: 0 auto;
+      width: 100%;
+      font-size: 12pt;
+    }
+    table {
+      width: 100%;
+      table-layout: fixed;
+    }
+    th, td {
+      padding: 6px;
+      text-align: left;
+    }
   }
 </style>
 </head>
