@@ -155,7 +155,10 @@ db.ref('orders').on('value', snapshot => {
     div.appendChild(table);
     stats.appendChild(div);
   }
-  function clearDate(date) {
+});
+
+// ✅ 把 clearDate 放在外面（同一個 <script> 裡）
+function clearDate(date) {
   if (!confirm(`確定要刪除 ${date} 當天的統計資料嗎？`)) return;
   db.ref(`orders/${date}`).remove()
     .then(() => {
