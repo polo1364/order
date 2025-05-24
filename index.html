@@ -100,8 +100,18 @@ async function loadMenu() {
 
     let html = "<table><tr><th>品項</th><th>價格</th><th>選取</th></tr>";
     for (let item in menuData) {
-      html += `<tr><td>${item}</td><td>${menuData[item]}</td>
-      <td><input type='radio' name='menuItem' value='${item}'></td></tr>`;
+      const price = menuData[item];
+      if (typeof price === 'object') {
+        // 有小碗/大碗等子項
+        for (let sub in price) {
+          html += `<tr><td>${item}（${sub}）</td><td>${price[sub]}</td>
+          <td><input type='radio' name='menuItem' value='${item}-${sub}' data-price='${price[sub]}'></td></tr>`;
+        }
+      } else {
+        // 單價品項
+        html += `<tr><td>${item}</td><td>${price}</td>
+        <td><input type='radio' name='menuItem' value='${item}' data-price='${price}'></td></tr>`;
+      }
     }
     html += "</table>";
     menuArea.innerHTML = html;
@@ -117,8 +127,8 @@ function submitOrder() {
   const sel = document.querySelector("input[name='menuItem']:checked");
   if (!user || !date || !store || !sel) return alert("請填寫所有欄位");
 
-  const item = sel.value;
-  const price = menuData[item];
+  const item = sel.value;                         // 可能是「品項」或「品項-大小」
+  const price = sel.getAttribute('data-price');   // 從 data-price 讀取價格
   const key = db.ref('orders/' + date).push().key;
   db.ref('orders/' + date + '/' + key).set({ user, item, price });
 }
