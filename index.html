@@ -29,7 +29,6 @@
   <label>店家：
     <select id="storeSelect" onchange="loadMenu()">
       <option value="">請選擇</option>
-      <option value="新香味">新香味</option>
     </select>
   </label>
 
@@ -55,6 +54,21 @@ const db = firebase.database();
 let user = "";
 let menuData = {};
 
+// 頁面載入時，自動載入店家清單
+window.onload = async function() {
+  try {
+    const res = await fetch("https://polo1364.github.io/order/menu.json");
+    const data = await res.json();
+    const storeSelect = document.getElementById('storeSelect');
+    storeSelect.innerHTML = '<option value="">請選擇</option>';
+    for (let store in data) {
+      storeSelect.innerHTML += `<option value="${store}">${store}</option>`;
+    }
+  } catch {
+    alert("無法載入店家清單，請稍後再試！");
+  }
+};
+
 function login() {
   user = document.getElementById('userId').value.trim();
   if (!user) return alert("請輸入工號！");
@@ -62,7 +76,7 @@ function login() {
   document.getElementById('userName').innerText = user;
 }
 
-function loadMenu() {
+async function loadMenu() {
   const store = document.getElementById('storeSelect').value;
   const menuArea = document.getElementById('menuArea');
   const dateArea = document.getElementById('dateArea');
@@ -70,21 +84,23 @@ function loadMenu() {
   dateArea.classList.add('hidden');
   if (!store) return;
 
-  fetch("https://polo1364.github.io/order/menu.json")
-    .then(res => res.json())
-    .then(data => {
-      menuData = data[store];
-      if (!menuData) return alert("無法載入菜單，請稍後再試！");
-      let html = "<table><tr><th>品項</th><th>價格</th><th>選取</th></tr>";
-      for (let item in menuData) {
-        html += `<tr><td>${item}</td><td>${menuData[item]}</td>
-        <td><input type='radio' name='menuItem' value='${item}'></td></tr>`;
-      }
-      html += "</table>";
-      menuArea.innerHTML = html;
-      dateArea.classList.remove('hidden');
-    })
-    .catch(() => alert("無法載入菜單，請稍後再試"));
+  try {
+    const res = await fetch("https://polo1364.github.io/order/menu.json");
+    const data = await res.json();
+    menuData = data[store];
+    if (!menuData) throw new Error("菜單載入失敗");
+
+    let html = "<table><tr><th>品項</th><th>價格</th><th>選取</th></tr>";
+    for (let item in menuData) {
+      html += `<tr><td>${item}</td><td>${menuData[item]}</td>
+      <td><input type='radio' name='menuItem' value='${item}'></td></tr>`;
+    }
+    html += "</table>";
+    menuArea.innerHTML = html;
+    dateArea.classList.remove('hidden');
+  } catch {
+    alert("無法載入菜單，請稍後再試！");
+  }
 }
 
 function submitOrder() {
@@ -99,6 +115,7 @@ function submitOrder() {
   db.ref('orders/' + date + '/' + key).set({ user, item, price });
 }
 
+// 即時監聽統計表
 db.ref('orders').on('value', snapshot => {
   const stats = document.getElementById('stats');
   stats.innerHTML = '';
