@@ -132,7 +132,7 @@ db.ref('orders').on('value', snapshot => {
 
   for (let date in data) {
     const div = document.createElement('div');
-    div.innerHTML = `<h4>${date}</h4>`;
+    div.innerHTML = `<h4>${date} <button onclick="clearDate('${date}')">清除 ${date} 統計表</button></h4>`;
     const table = document.createElement('table');
     table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
     const grouped = {};
@@ -155,6 +155,16 @@ db.ref('orders').on('value', snapshot => {
     div.appendChild(table);
     stats.appendChild(div);
   }
+  function clearDate(date) {
+  if (!confirm(`確定要刪除 ${date} 當天的統計資料嗎？`)) return;
+  db.ref(`orders/${date}`).remove()
+    .then(() => {
+      alert(`${date} 當天統計資料已刪除！`);
+    })
+    .catch(err => {
+      alert(`刪除失敗：${err}`);
+    });
+}
 });
 
 function deleteRecord(date, id) {
