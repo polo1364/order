@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>便當點餐系統（GitHub JSON 版）</title>
+<title>便當點餐系統</title>
 <style>
   body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 1em; }
   table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 6px 10px; }
@@ -34,6 +34,7 @@ function loadMenu() {
   const store = document.getElementById('storeSelect').value;
   if (!store) return;
 
+  // ✅ 你的 JSON 檔位址
   fetch('https://polo1364.github.io/order/menu.json')
     .then(res => res.json())
     .then(data => {
@@ -68,7 +69,7 @@ function submitOrder() {
 
   const item = sel.value;
   alert(`已選擇：${store} / ${item} / ${date}`);
-  // 這裡可接 Firebase、Google Sheets…等
+  // ✅ 這裡可加上寫入 Firebase 或 Google Sheets 的程式碼
 }
 </script>
 
