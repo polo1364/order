@@ -146,79 +146,72 @@ db.ref('orders').on('value', snapshot => {
   const today = new Date();
 
   for (let date in data) {
+    // 檢查是否超過 3 天
     const dateObj = new Date(date);
     const diffTime = today - dateObj;
     const diffDays = diffTime / (1000 * 60 * 60 * 24);
-
     if (diffDays > 3) {
-      db.ref(`orders/${date}`).remove().then(() => {
-        console.log(`已刪除 ${date} 的統計表`);
-      }).catch(err => {
-        console.error(`刪除 ${date} 失敗：`, err);
-      });
+      db.ref(`orders/${date}`).remove();
       continue;
     }
 
-    // 🔥 同一天依「店家」分群
+    // 依店家分組
     const byStore = {};
     for (let id in data[date]) {
-      const { store, user: u, item, price, note } = data[date][id];
-      if (!byStore[store]) byStore[store] = {};
-      const key = note ? `${item}__${note}` : `${item}__`;
-      if (!byStore[store][key]) byStore[store][key] = [];
-      byStore[store][key].push({ user: u, id, price, note });
+      const { user: u, item, price, note = "" } = data[date][id];
+      const [itemName, size] = item.split("-");
+      const displayItem = size ? `${itemName}（${size}）` : itemName;
+
+      if (!byStore[data[date][id].store]) byStore[data[date][id].store] = {};
+      if (!byStore[data[date][id].store][displayItem]) byStore[data[date][id].store][displayItem] = [];
+      byStore[data[date][id].store][displayItem].push({ user: u, id, price, note });
     }
 
-    // 🔥 依「店家」建立多個統計表
+    // 依店家分別產生表格
     for (let store in byStore) {
       const div = document.createElement('div');
 
-      // 取得星期幾
-      const weekday = ["日", "一", "二", "三", "四", "五", "六"];
-      const weekdayStr = `星期${weekday[dateObj.getDay()]}`;
-      div.innerHTML = `<h4>${date}（${weekdayStr}） - ${store}</h4>`;
+      // 星期顯示
+      const weekDay = ['日', '一', '二', '三', '四', '五', '六'][new Date(date).getDay()];
+      div.innerHTML = `<h4>${date}（星期${weekDay}） - ${store}</h4>`;
 
       const table = document.createElement('table');
       table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
 
       let total = 0;
-      for (let key in byStore[store]) {
-        const users = byStore[store][key];
+      for (let item in byStore[store]) {
+        const users = byStore[store][item];
         total += users.length * users[0].price;
 
-        const [item, note] = key.split('__');
-
-        // 統計同人多次點餐 & 不同備註也視為不同
+        // 統計同人多筆
         const userCount = {};
         users.forEach(u => {
-          if (!userCount[u.user]) userCount[u.user] = { count: 0, ids: [], notes: [] };
+          if (!userCount[u.user]) userCount[u.user] = { count: 0, notes: [], ids: [] };
           userCount[u.user].count++;
-          if (u.user === user) userCount[u.user].ids.push(u.id);
           if (u.note) userCount[u.user].notes.push(u.note);
+          userCount[u.user].ids.push(u.id);
         });
 
+        // 產生顯示文字（使用 <br> 換行）
         const names = Object.entries(userCount).map(([name, obj]) => {
-          const noteText = obj.notes.length > 0 ? `（${obj.notes.join("、")}）` : "";
-          const delBtn = (obj.ids.length > 0) ?
-            `<button class='delete-btn' onclick='deleteRecord("${date}","${obj.ids[0]}")'>刪除</button>` : "";
-          return obj.count > 1 ? `${name}${noteText}（共${obj.count}份） ${delBtn}` : `${name}${noteText} ${delBtn}`;
+          const uniqueNotes = [...new Set(obj.notes.filter(n => n))];
+          const noteText = uniqueNotes.length > 0 ? `<br>（${uniqueNotes.join("、")}）` : "";
+          const delBtn = `<button class='delete-btn' onclick='deleteRecord("${date}","${obj.ids[0]}")'>刪除</button>`;
+          return obj.count > 1
+            ? `${name}（共${obj.count}份）${noteText} ${delBtn}`
+            : `${name}${noteText} ${delBtn}`;
         });
 
-        const noteText = note ? `（${note}）` : "";
-        table.innerHTML += `<tr>
-          <td>${item}</td>
-          <td>${names.join("、")}${noteText}</td>
-          <td>${users.length}</td>
-        </tr>`;
+        table.innerHTML += `<tr><td>${item}</td><td>${names.join("<br>")}</td><td>${users.length}</td></tr>`;
       }
 
       table.innerHTML += `<tr><td colspan="2">總金額</td><td>$${total}</td></tr>`;
       div.appendChild(table);
 
-      // 「只列印這張」按鈕
+      // 列印按鈕
       const printBtn = document.createElement('button');
-      printBtn.classList.add('print-btn');
       printBtn.innerText = `列印 ${date} - ${store} 統計表`;
+      printBtn.classList.add('print-btn');
       printBtn.onclick = () => printSection(div);
       div.appendChild(printBtn);
 
