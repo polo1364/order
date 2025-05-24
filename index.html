@@ -166,39 +166,42 @@ db.ref('orders').on('value', snapshot => {
     const grouped = {};
     for (let id in data[date]) {
       const { user: u, item, price, note } = data[date][id];
-      if (!grouped[item]) grouped[item] = [];
-      grouped[item].push({ user: u, id, price, note });
+      // 「品項 + 備註」當作唯一 key，備註空字串時用 ""，確保不會合併
+      const key = note ? `${item}__${note}` : `${item}__`;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push({ user: u, id, price, note });
     }
 
     let total = 0;
-    for (let item in grouped) {
-      const users = grouped[item];
+    for (let key in grouped) {
+      const users = grouped[key];
       total += users.length * users[0].price;
 
-      // 統計同人多次點餐 & 合併備註
+      const [item, note] = key.split('__');
+      // 統計同人多次
       const userCount = {};
       users.forEach(u => {
-        if (!userCount[u.user]) userCount[u.user] = { count: 0, notes: [], ids: [] };
+        if (!userCount[u.user]) userCount[u.user] = { count: 0, ids: [] };
         userCount[u.user].count++;
-        if (u.note) userCount[u.user].notes.push(u.note);
         if (u.user === user) userCount[u.user].ids.push(u.id);
       });
 
+      // 人名、刪除鈕一次
       const names = Object.entries(userCount).map(([name, obj]) => {
-        const notesText = obj.notes.length > 0 ? `（${obj.notes.join("、")}）` : "";
-        // 只顯示一次刪除鈕（即便同人有多筆）
         const delBtn = (obj.ids.length > 0) ?
           `<button class='delete-btn' onclick='deleteRecord("${date}","${obj.ids[0]}")'>刪除</button>` : "";
-        return obj.count > 1 ? `${name}${notesText}（共${obj.count}份） ${delBtn}` : `${name}${notesText} ${delBtn}`;
+        return obj.count > 1 ? `${name}（共${obj.count}份） ${delBtn}` : `${name} ${delBtn}`;
       });
 
-      table.innerHTML += `<tr><td>${item}</td><td>${names.join("、")}</td><td>${users.length}</td></tr>`;
+      // 備註在「人員欄」旁邊顯示（若有填）
+      const noteText = note ? `（${note}）` : "";
+      table.innerHTML += `<tr><td>${item}</td><td>${names.join("、")}${noteText}</td><td>${users.length}</td></tr>`;
     }
 
     table.innerHTML += `<tr><td colspan="2">總金額</td><td>$${total}</td></tr>`;
     div.appendChild(table);
 
-    // 加上只列印這天的按鈕
+    // 加上「只列印這天」按鈕
     const printBtn = document.createElement('button');
     printBtn.classList.add('print-btn');
     printBtn.innerText = `列印 ${date} 統計表`;
