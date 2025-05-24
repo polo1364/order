@@ -2,17 +2,19 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>便當點餐系統（JSON菜單版）</title>
+<title>便當點餐系統（格狀菜單版）</title>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <style>
   body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 1em; }
   table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 6px 10px; }
   th { background: #f0f0f0; }
+  td { text-align: center; vertical-align: top; width: 33%; }
   @media print { .delete-btn, #loginSection, #controls { display: none !important; } }
 </style>
 </head>
 <body>
+
 <h2>Firebase 版便當點餐系統</h2>
 
 <div id="loginSection">
@@ -84,10 +86,14 @@
     menuArea.innerHTML = "";
     dateArea.style.display = "none";
     if (menu) {
-      let html = "<table><tr><th>品項</th><th>選取</th></tr>";
+      let html = "<table><tr>";
+      let count = 0;
       for (let item in menu) {
-        html += `<tr><td>${item}</td><td><input type='radio' name='menuItem' value='${item}'></td></tr>`;
+        html += `<td>${item}<br><input type='radio' name='menuItem' value='${item}'></td>`;
+        count++;
+        if (count % 3 === 0) html += "</tr><tr>"; // 每行 3 欄
       }
+      if (count % 3 !== 0) html += "</tr>"; // 補齊最後一行
       html += "</table>";
       menuArea.innerHTML = html;
       dateArea.style.display = "block";
@@ -142,5 +148,6 @@
     db.ref('orders/' + date + '/' + id).remove();
   }
 </script>
+
 </body>
 </html>
