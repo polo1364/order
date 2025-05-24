@@ -230,19 +230,6 @@ function printSection(section) {
   printWindow.print();
 }
 
-// 刪除自己單筆
-function deleteRecord(date, id) {
-  if (!confirm("確定要刪除這筆紀錄？")) return;
-  db.ref(`orders/${date}/${id}`).remove();
-}
-
-// 刪除當日統計表
-function clearDate(date) {
-  if (!confirm(`確定要刪除 ${date} 當天的統計資料嗎？`)) return;
-  db.ref(`orders/${date}`).remove()
-    .then(() => alert(`${date} 當天統計資料已刪除！`))
-    .catch(err => alert(`刪除失敗：${err}`));
-}
 </script>
 
 </body>
