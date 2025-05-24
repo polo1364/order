@@ -2,102 +2,94 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8" />
-<title>新香味便當點餐系統</title>
-<style>
-  body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 1em; }
-  table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 6px 10px; }
-  th { background: #f0f0f0; }
-  @media print { .delete-btn, #loginSection, #controls { display: none !important; } }
-</style>
-<!-- Firebase -->
+<title>便當點餐系統</title>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<style>
+  body { font-family: sans-serif; max-width: 650px; margin: auto; padding: 1em; background: #fafafa; color: #333; }
+  h2 { color: #b22222; }
+  table { width: 100%; border-collapse: collapse; margin: 1em 0; background: #fff; }
+  th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+  th { background: #f0f0f0; }
+  #loginSection, #controls { margin-bottom: 1em; }
+  button { margin-left: 0.5em; }
+  @media print { .delete-btn, #loginSection, #controls { display: none !important; } }
+</style>
 </head>
 <body>
-<h2>新香味便當點餐系統</h2>
+<h2>便當點餐系統</h2>
+
 <div id="loginSection">
   工號：<input id="userId" />
   <button onclick="login()">登入</button>
 </div>
+
 <div id="main" style="display:none;">
   <p>使用者：<span id="userName"></span></p>
   <div id="controls">
-    <label>店家：
-      <select id="storeSelect" onchange="loadMenu()">
-        <option value="新香味">新香味</option>
-      </select>
-    </label>
     <div id="menuArea"></div>
-    <div id="dateArea" style="display:none;">
+    <div style="margin: 1em 0;">
       <input type="date" id="orderDate" />
       <button onclick="submitOrder()">送出</button>
+      <button onclick="window.print()">列印統計表</button>
     </div>
-    <button onclick="window.print()">列印統計表</button>
   </div>
 </div>
+
 <h3>即時統計</h3>
 <div id="stats"></div>
 
 <script>
-// Firebase 設定
 const firebaseConfig = {
   databaseURL: "https://bento-5bb36-default-rtdb.firebaseio.com/"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// 使用者與菜單資料
-let user = "";
 let menuData = {};
-
-// 登入
-function login() {
-  user = document.getElementById("userId").value.trim();
-  if (!user) return alert("請輸入工號！");
-  document.getElementById("main").style.display = "block";
-  document.getElementById("userName").innerText = user;
-  loadMenu(); // 預設載入一次菜單
-}
+let user = "";
 
 // 載入菜單
-function loadMenu() {
-  fetch("menu.json")
-    .then(res => res.json())
-    .then(data => {
-      menuData = data;
-      const store = document.getElementById("storeSelect").value;
-      const menu = menuData[store];
-      const menuArea = document.getElementById("menuArea");
-      const dateArea = document.getElementById("dateArea");
-      menuArea.innerHTML = "";
-      dateArea.style.display = "none";
+fetch("https://polo1364.github.io/order/menu.json")  // 替換為你的菜單連結
+  .then(res => res.json())
+  .then(data => {
+    menuData = data["新香味"];
+    renderMenu();
+  })
+  .catch(() => alert("無法載入菜單，請稍後再試"));
 
-      if (menu) {
-        let html = "<table><tr><th>品項</th><th>價錢</th><th>選取</th></tr>";
-        for (let item in menu) {
-          html += `<tr><td>${item}</td><td>${menu[item]}</td><td><input type='radio' name='menuItem' value='${item}'></td></tr>`;
-        }
-        html += "</table>";
-        menuArea.innerHTML = html;
-        dateArea.style.display = "block";
-      }
-    })
-    .catch(() => alert("無法載入菜單，請稍後再試"));
+function login() {
+  user = document.getElementById('userId').value.trim();
+  if (!user) return alert("請輸入工號！");
+  document.getElementById('main').style.display = "block";
+  document.getElementById('userName').innerText = user;
 }
 
-// 送出訂單
+function renderMenu() {
+  const menuArea = document.getElementById('menuArea');
+  let html = "<table><tr><th>品項</th><th>價格</th><th>選取</th></tr>";
+  for (let item in menuData) {
+    html += `<tr>
+      <td>${item}</td>
+      <td>$${menuData[item]}</td>
+      <td><input type='radio' name='menuItem' value='${item}'></td>
+    </tr>`;
+  }
+  html += "</table>";
+  menuArea.innerHTML = html;
+}
+
 function submitOrder() {
-  const date = document.getElementById("orderDate").value;
-  const store = document.getElementById("storeSelect").value;
+  const date = document.getElementById('orderDate').value;
   const sel = document.querySelector("input[name='menuItem']:checked");
-  if (!user || !date || !store || !sel) return alert("請填寫所有欄位");
+  if (!user || !date || !sel) return alert("請填寫所有欄位");
+
   const item = sel.value;
-  const price = menuData[store][item];
+  const price = menuData[item];
   const key = db.ref('orders/' + date).push().key;
   db.ref('orders/' + date + '/' + key).set({ user, item, price });
 }
 
-// 統計顯示
 db.ref('orders').on('value', snapshot => {
   const stats = document.getElementById('stats');
   stats.innerHTML = '';
@@ -111,16 +103,18 @@ db.ref('orders').on('value', snapshot => {
     table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
     const grouped = {};
     for (let id in data[date]) {
-      const { user, item, price } = data[date][id];
+      const { user: u, item, price } = data[date][id];
       if (!grouped[item]) grouped[item] = [];
-      grouped[item].push(user);
+      grouped[item].push({ user: u, id, price });
     }
     let total = 0;
     for (let item in grouped) {
       const users = grouped[item];
-      total += users.length * menuData["新香味"][item];
-      const names = users.map(u => {
-        return u === user ? `${u} <button class='delete-btn' onclick='deleteRecord("${date}", "${id}")'>刪除</button>` : u;
+      total += users.length * menuData[item];
+      const names = users.map(o => {
+        return o.user === user
+          ? `${o.user}<button class='delete-btn' onclick='deleteRecord("${date}", "${o.id}")'>刪除</button>`
+          : o.user;
       });
       table.innerHTML += `<tr><td>${item}</td><td>${names.join("、")}</td><td>${users.length}</td></tr>`;
     }
@@ -130,7 +124,6 @@ db.ref('orders').on('value', snapshot => {
   }
 });
 
-// 刪除紀錄
 function deleteRecord(date, id) {
   if (!confirm("確定要刪除這筆紀錄？")) return;
   db.ref(`orders/${date}/${id}`).remove();
