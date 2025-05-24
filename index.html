@@ -2,76 +2,145 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>便當點餐系統</title>
+<title>便當點餐系統（JSON菜單版）</title>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <style>
   body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 1em; }
   table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 6px 10px; }
   th { background: #f0f0f0; }
-  #dateArea { display: none; margin-top: 1em; }
+  @media print { .delete-btn, #loginSection, #controls { display: none !important; } }
 </style>
 </head>
 <body>
+<h2>Firebase 版便當點餐系統</h2>
 
-<h2>便當點餐系統</h2>
-
-<label>店家：
-  <select id="storeSelect" onchange="loadMenu()">
-    <option value="">請選擇店家</option>
-    <option value="新香味（林園）">新香味（林園）</option>
-    <option value="品馨肉燥">品馨肉燥</option>
-  </select>
-</label>
-
-<div id="menuArea"></div>
-
-<div id="dateArea">
-  <input type="date" id="orderDate">
-  <button onclick="submitOrder()">送出</button>
+<div id="loginSection">
+  工號：<input id="userId" />
+  <button onclick="login()">登入</button>
 </div>
 
-<script>
-function loadMenu() {
-  const store = document.getElementById('storeSelect').value;
-  if (!store) return;
+<div id="main" style="display:none;">
+  <p>使用者：<span id="userName"></span></p>
+  <div id="controls">
+    <label>店家：
+      <select id="storeSelect" onchange="loadMenu()"></select>
+    </label>
+    <div id="menuArea"></div>
+    <div id="dateArea" style="display:none;">
+      <input type="date" id="orderDate" />
+      <button onclick="submitOrder()">送出</button>
+    </div>
+    <button onclick="window.print()">列印統計表</button>
+  </div>
+</div>
 
-  // ✅ 你的 JSON 檔位址
-  fetch('https://polo1364.github.io/order/menu.json')
+<h3>即時統計</h3>
+<div id="stats"></div>
+
+<script>
+  // ✅ Firebase 設定
+  const firebaseConfig = {
+    apiKey: "AIzaSyCOb9S_vTut8M4uHzju4SJJH0gZzEsMX1E",
+    authDomain: "bento-5bb36.firebaseapp.com",
+    databaseURL: "https://bento-5bb36-default-rtdb.firebaseio.com",
+    projectId: "bento-5bb36",
+    storageBucket: "bento-5bb36.firebasestorage.app",
+    messagingSenderId: "930870248395",
+    appId: "1:930870248395:web:3bb0852002099776756c4e",
+    measurementId: "G-N25RTKGWXB"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  let menuData = {};
+  let user = "";
+
+  // 讀取菜單 JSON
+  fetch("https://polo1364.github.io/order/menu.json")
     .then(res => res.json())
     .then(data => {
-      const menu = data[store];
-      const menuArea = document.getElementById('menuArea');
-      menuArea.innerHTML = "";
-      if (menu) {
-        let html = "<table><tr><th>品項</th><th>選取</th></tr>";
-        for (let item in menu) {
-          html += `<tr><td>${item}</td><td><input type='radio' name='menuItem' value='${item}'></td></tr>`;
-        }
-        html += "</table>";
-        menuArea.innerHTML = html;
-        document.getElementById('dateArea').style.display = "block";
-      }
+      menuData = data;
+      const storeSelect = document.getElementById("storeSelect");
+      storeSelect.innerHTML = '<option value="">請選擇</option>';
+      Object.keys(menuData).forEach(store => {
+        storeSelect.innerHTML += `<option value="${store}">${store}</option>`;
+      });
     })
-    .catch(err => {
-      console.error("❌ 無法載入菜單", err);
-      alert("無法載入菜單，請稍後再試");
-    });
-}
+    .catch(err => alert("無法載入菜單，請稍後再試"));
 
-function submitOrder() {
-  const store = document.getElementById('storeSelect').value;
-  const sel = document.querySelector("input[name='menuItem']:checked");
-  const date = document.getElementById('orderDate').value;
-
-  if (!store || !sel || !date) {
-    alert("請填寫所有欄位！");
-    return;
+  function login() {
+    user = document.getElementById('userId').value.trim();
+    if (!user) return alert("請輸入工號！");
+    document.getElementById('main').style.display = "block";
+    document.getElementById('userName').innerText = user;
   }
 
-  const item = sel.value;
-  alert(`已選擇：${store} / ${item} / ${date}`);
-  // ✅ 這裡可加上寫入 Firebase 或 Google Sheets 的程式碼
-}
-</script>
+  function loadMenu() {
+    const store = document.getElementById('storeSelect').value;
+    const menu = menuData[store];
+    const menuArea = document.getElementById('menuArea');
+    const dateArea = document.getElementById('dateArea');
+    menuArea.innerHTML = "";
+    dateArea.style.display = "none";
+    if (menu) {
+      let html = "<table><tr><th>品項</th><th>選取</th></tr>";
+      for (let item in menu) {
+        html += `<tr><td>${item}</td><td><input type='radio' name='menuItem' value='${item}'></td></tr>`;
+      }
+      html += "</table>";
+      menuArea.innerHTML = html;
+      dateArea.style.display = "block";
+    }
+  }
 
+  function submitOrder() {
+    const date = document.getElementById('orderDate').value;
+    const store = document.getElementById('storeSelect').value;
+    const sel = document.querySelector("input[name='menuItem']:checked");
+    if (!user || !date || !store || !sel) return alert("請填寫所有欄位");
+    const item = sel.value;
+    const price = menuData[store][item];
+    const key = db.ref('orders/' + date).push().key;
+    db.ref('orders/' + date + '/' + key).set({ user, item, price });
+  }
+
+  db.ref('orders').on('value', snapshot => {
+    const stats = document.getElementById('stats');
+    stats.innerHTML = '';
+    const data = snapshot.val();
+    if (!data) return stats.innerHTML = '尚無資料';
+    for (let date in data) {
+      const div = document.createElement('div');
+      div.innerHTML = `<h4>${date}</h4>`;
+      const table = document.createElement('table');
+      table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
+      const grouped = {};
+      for (let id in data[date]) {
+        const { user, item } = data[date][id];
+        if (!grouped[item]) grouped[item] = [];
+        grouped[item].push({ user, id });
+      }
+      let total = 0;
+      for (let item in grouped) {
+        const users = grouped[item];
+        total += users.length * (menuData["新香味"][item] || menuData["品馨肉燥"][item]);
+        const names = users.map(u => {
+          const btn = u.user === user ? ` <button class='delete-btn' onclick='deleteRecord("${date}", "${u.id}")'>刪除</button>` : "";
+          return u.user + btn;
+        });
+        table.innerHTML += `<tr><td>${item}</td><td>${names.join("、")}</td><td>${users.length}</td></tr>`;
+      }
+      table.innerHTML += `<tr><td colspan="2">總金額</td><td>$${total}</td></tr>`;
+      div.appendChild(table);
+      stats.appendChild(div);
+    }
+  });
+
+  function deleteRecord(date, id) {
+    if (!confirm("確定要刪除這筆紀錄？")) return;
+    db.ref('orders/' + date + '/' + id).remove();
+  }
+</script>
 </body>
 </html>
