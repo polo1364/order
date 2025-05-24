@@ -80,7 +80,7 @@ function submitOrder() {
   const item = sel.value;
   const price = menuData[store][item];
   const key = db.ref('orders/' + date).push().key;
-  db.ref('orders/' + date + '/' + key).set({ user, item, price });
+  db.ref('orders/' + date + '/' + key).set({ user: user.trim(), item, price });
 }
 
 function deleteRecord(date, id) {
@@ -111,7 +111,9 @@ db.ref('orders').on('value', snapshot => {
       const users = grouped[item];
       total += users.length * menuData["好吃便當"][item];
       const names = users.map(u => {
-        const btn = u.user.trim() === user.trim() ? ` <button class='delete-btn' onclick='deleteRecord("${date}", "${u.id}")'>刪除</button>` : "";
+        const uName = u.user.replace(/\s+/g, '');
+        const curUser = user.replace(/\s+/g, '');
+        const btn = uName === curUser ? ` <button class='delete-btn' onclick='deleteRecord("${date}", "${u.id}")'>刪除</button>` : "";
         return u.user + btn;
       });
       table.innerHTML += `<tr><td>${item}</td><td>${names.join("、")}</td><td>${users.length}</td></tr>`;
