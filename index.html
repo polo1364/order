@@ -159,65 +159,71 @@ db.ref('orders').on('value', snapshot => {
       continue;
     }
 
-    // 取得星期幾
-    const weekday = ["日", "一", "二", "三", "四", "五", "六"];
-    const weekdayStr = `星期${weekday[dateObj.getDay()]}`;
-
-    // 統計當天所有店家（假設有 store 欄位）
-    const storeNames = new Set();
+    // 🔥 同一天依「店家」分群
+    const byStore = {};
     for (let id in data[date]) {
-      if (data[date][id].store) {
-        storeNames.add(data[date][id].store);
-      }
-    }
-    const storeNameStr = storeNames.size > 0 ? `店家：${Array.from(storeNames).join("、")}` : "";
-
-    const div = document.createElement('div');
-    div.innerHTML = `<h4>${date}（${weekdayStr}） ${storeNameStr}</h4>`;
-    const table = document.createElement('table');
-    table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
-
-    const grouped = {};
-    for (let id in data[date]) {
-      const { user: u, item, price, note } = data[date][id];
+      const { store, user: u, item, price, note } = data[date][id];
+      if (!byStore[store]) byStore[store] = {};
       const key = note ? `${item}__${note}` : `${item}__`;
-      if (!grouped[key]) grouped[key] = [];
-      grouped[key].push({ user: u, id, price, note });
+      if (!byStore[store][key]) byStore[store][key] = [];
+      byStore[store][key].push({ user: u, id, price, note });
     }
 
-    let total = 0;
-    for (let key in grouped) {
-      const users = grouped[key];
-      total += users.length * users[0].price;
+    // 🔥 依「店家」建立多個統計表
+    for (let store in byStore) {
+      const div = document.createElement('div');
 
-      const [item, note] = key.split('__');
-      const userCount = {};
-      users.forEach(u => {
-        if (!userCount[u.user]) userCount[u.user] = { count: 0, ids: [] };
-        userCount[u.user].count++;
-        if (u.user === user) userCount[u.user].ids.push(u.id);
-      });
+      // 取得星期幾
+      const weekday = ["日", "一", "二", "三", "四", "五", "六"];
+      const weekdayStr = `星期${weekday[dateObj.getDay()]}`;
+      div.innerHTML = `<h4>${date}（${weekdayStr}） - ${store}</h4>`;
 
-      const names = Object.entries(userCount).map(([name, obj]) => {
-        const delBtn = (obj.ids.length > 0) ?
-          `<button class='delete-btn' onclick='deleteRecord("${date}","${obj.ids[0]}")'>刪除</button>` : "";
-        return obj.count > 1 ? `${name}（共${obj.count}份） ${delBtn}` : `${name} ${delBtn}`;
-      });
+      const table = document.createElement('table');
+      table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
 
-      const noteText = note ? `（${note}）` : "";
-      table.innerHTML += `<tr><td>${item}</td><td>${names.join("、")}${noteText}</td><td>${users.length}</td></tr>`;
+      let total = 0;
+      for (let key in byStore[store]) {
+        const users = byStore[store][key];
+        total += users.length * users[0].price;
+
+        const [item, note] = key.split('__');
+
+        // 統計同人多次點餐 & 不同備註也視為不同
+        const userCount = {};
+        users.forEach(u => {
+          if (!userCount[u.user]) userCount[u.user] = { count: 0, ids: [], notes: [] };
+          userCount[u.user].count++;
+          if (u.user === user) userCount[u.user].ids.push(u.id);
+          if (u.note) userCount[u.user].notes.push(u.note);
+        });
+
+        const names = Object.entries(userCount).map(([name, obj]) => {
+          const noteText = obj.notes.length > 0 ? `（${obj.notes.join("、")}）` : "";
+          const delBtn = (obj.ids.length > 0) ?
+            `<button class='delete-btn' onclick='deleteRecord("${date}","${obj.ids[0]}")'>刪除</button>` : "";
+          return obj.count > 1 ? `${name}${noteText}（共${obj.count}份） ${delBtn}` : `${name}${noteText} ${delBtn}`;
+        });
+
+        const noteText = note ? `（${note}）` : "";
+        table.innerHTML += `<tr>
+          <td>${item}</td>
+          <td>${names.join("、")}${noteText}</td>
+          <td>${users.length}</td>
+        </tr>`;
+      }
+
+      table.innerHTML += `<tr><td colspan="2">總金額</td><td>$${total}</td></tr>`;
+      div.appendChild(table);
+
+      // 「只列印這張」按鈕
+      const printBtn = document.createElement('button');
+      printBtn.classList.add('print-btn');
+      printBtn.innerText = `列印 ${date} - ${store} 統計表`;
+      printBtn.onclick = () => printSection(div);
+      div.appendChild(printBtn);
+
+      stats.appendChild(div);
     }
-
-    table.innerHTML += `<tr><td colspan="2">總金額</td><td>$${total}</td></tr>`;
-    div.appendChild(table);
-
-    const printBtn = document.createElement('button');
-    printBtn.classList.add('print-btn');
-    printBtn.innerText = `列印 ${date} 統計表`;
-    printBtn.onclick = () => printSection(div);
-    div.appendChild(printBtn);
-
-    stats.appendChild(div);
   }
 });
 
