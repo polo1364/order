@@ -1,22 +1,21 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8" />
-<title>便當點餐系統</title>
+<meta charset="UTF-8">
+<title>便當點餐系統（新香味）</title>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <style>
-  body { font-family: sans-serif; max-width: 650px; margin: auto; padding: 1em; background: #fafafa; color: #333; }
-  h2 { color: #b22222; }
-  table { width: 100%; border-collapse: collapse; margin: 1em 0; background: #fff; }
-  th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-  th { background: #f0f0f0; }
-  #loginSection, #controls { margin-bottom: 1em; }
-  button { margin-left: 0.5em; }
+  body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 1em; }
+  h2 { color: #b30000; }
+  table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 4px 8px; }
+  th { background: #eee; }
+  .hidden { display: none; }
   @media print { .delete-btn, #loginSection, #controls { display: none !important; } }
 </style>
 </head>
 <body>
+
 <h2>便當點餐系統</h2>
 
 <div id="loginSection">
@@ -24,15 +23,21 @@
   <button onclick="login()">登入</button>
 </div>
 
-<div id="main" style="display:none;">
+<div id="main" class="hidden">
   <p>使用者：<span id="userName"></span></p>
-  <div id="controls">
-    <div id="menuArea"></div>
-    <div style="margin: 1em 0;">
-      <input type="date" id="orderDate" />
-      <button onclick="submitOrder()">送出</button>
-      <button onclick="window.print()">列印統計表</button>
-    </div>
+
+  <label>店家：
+    <select id="storeSelect" onchange="loadMenu()">
+      <option value="">請選擇</option>
+      <option value="新香味">新香味</option>
+    </select>
+  </label>
+
+  <div id="menuArea"></div>
+  <div id="dateArea" class="hidden">
+    <input type="date" id="orderDate" />
+    <button onclick="submitOrder()">送出</button>
+    <button onclick="window.print()">列印統計表</button>
   </div>
 </div>
 
@@ -40,49 +45,52 @@
 <div id="stats"></div>
 
 <script>
+// Firebase 初始化
 const firebaseConfig = {
   databaseURL: "https://bento-5bb36-default-rtdb.firebaseio.com/"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-let menuData = {};
 let user = "";
-
-// 載入菜單
-fetch("https://polo1364.github.io/order/menu.json")  // 替換為你的菜單連結
-  .then(res => res.json())
-  .then(data => {
-    menuData = data["新香味"];
-    renderMenu();
-  })
-  .catch(() => alert("無法載入菜單，請稍後再試"));
+let menuData = {};
 
 function login() {
   user = document.getElementById('userId').value.trim();
   if (!user) return alert("請輸入工號！");
-  document.getElementById('main').style.display = "block";
+  document.getElementById('main').classList.remove('hidden');
   document.getElementById('userName').innerText = user;
 }
 
-function renderMenu() {
+function loadMenu() {
+  const store = document.getElementById('storeSelect').value;
   const menuArea = document.getElementById('menuArea');
-  let html = "<table><tr><th>品項</th><th>價格</th><th>選取</th></tr>";
-  for (let item in menuData) {
-    html += `<tr>
-      <td>${item}</td>
-      <td>$${menuData[item]}</td>
-      <td><input type='radio' name='menuItem' value='${item}'></td>
-    </tr>`;
-  }
-  html += "</table>";
-  menuArea.innerHTML = html;
+  const dateArea = document.getElementById('dateArea');
+  menuArea.innerHTML = "";
+  dateArea.classList.add('hidden');
+  if (!store) return;
+
+  fetch("https://polo1364.github.io/order/menu.json")
+    .then(res => res.json())
+    .then(data => {
+      menuData = data[store];
+      if (!menuData) return alert("無法載入菜單，請稍後再試");
+      let html = "<table><tr><th>品項</th><th>價格</th><th>選取</th></tr>";
+      for (let item in menuData) {
+        html += `<tr><td>${item}</td><td>${menuData[item]}</td>
+        <td><input type='radio' name='menuItem' value='${item}'></td></tr>`;
+      }
+      html += "</table>";
+      menuArea.innerHTML = html;
+      dateArea.classList.remove('hidden');
+    });
 }
 
 function submitOrder() {
   const date = document.getElementById('orderDate').value;
+  const store = document.getElementById('storeSelect').value;
   const sel = document.querySelector("input[name='menuItem']:checked");
-  if (!user || !date || !sel) return alert("請填寫所有欄位");
+  if (!user || !date || !store || !sel) return alert("請填寫所有欄位");
 
   const item = sel.value;
   const price = menuData[item];
@@ -103,18 +111,17 @@ db.ref('orders').on('value', snapshot => {
     table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
     const grouped = {};
     for (let id in data[date]) {
-      const { user: u, item, price } = data[date][id];
+      const { user, item, price } = data[date][id];
       if (!grouped[item]) grouped[item] = [];
-      grouped[item].push({ user: u, id, price });
+      grouped[item].push({ user, id, price });
     }
     let total = 0;
     for (let item in grouped) {
       const users = grouped[item];
-      total += users.length * menuData[item];
-      const names = users.map(o => {
-        return o.user === user
-          ? `${o.user}<button class='delete-btn' onclick='deleteRecord("${date}", "${o.id}")'>刪除</button>`
-          : o.user;
+      total += users.length * users[0].price;
+      const names = users.map(u => {
+        const btn = u.user === user ? ` <button class='delete-btn' onclick='deleteRecord("${date}","${u.id}")'>刪除</button>` : "";
+        return u.user + btn;
       });
       table.innerHTML += `<tr><td>${item}</td><td>${names.join("、")}</td><td>${users.length}</td></tr>`;
     }
@@ -129,5 +136,6 @@ function deleteRecord(date, id) {
   db.ref(`orders/${date}/${id}`).remove();
 }
 </script>
+
 </body>
 </html>
