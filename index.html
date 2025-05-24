@@ -1,95 +1,22 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
 <title>便當點餐系統</title>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <style>
-  body {
-    font-family: sans-serif;
-    max-width: 800px;
-    margin: auto;
-    padding: 1em;
-    background: #f9f9f9;
-  }
-  h2 {
-    color: #b30000;
-    margin-bottom: 0.5em;
-  }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    background: #fff;
-  }
-  th, td {
-    border: 1px solid #ccc;
-    padding: 6px 10px;
-    text-align: left;
-  }
-  th {
-    background: #eee;
-  }
+  body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 1em; }
+  h2 { color: #b30000; }
+  table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 4px 8px; }
+  th { background: #eee; }
   .hidden { display: none; }
-  input[type="date"],
-  input[type="text"],
-  select {
-    padding: 6px;
-    margin: 5px 0;
-    width: 100%;
-    box-sizing: border-box;
-  }
-  button {
-    padding: 6px 10px;
-    margin: 5px 2px;
-  }
-  @media (max-width: 600px) {
-    table, thead, tbody, th, td, tr {
-      display: block;
-      width: 100%;
-    }
-    thead tr {
-      display: none;
-    }
-    tr {
-      margin-bottom: 10px;
-      border-bottom: 2px solid #ddd;
-    }
-    td {
-      text-align: right;
-      padding-left: 50%;
-      position: relative;
-    }
-    td::before {
-      content: attr(data-label);
-      position: absolute;
-      left: 10px;
-      top: 6px;
-      font-weight: bold;
-      text-align: left;
-    }
-  }
   @media print {
-    html, body {
-      margin: 0;
-      padding: 0;
-    }
-    #loginSection, #controls, #menuArea, h2, #main p, #storeSelect, #orderDate, button:not(.print-btn) {
-      display: none !important;
-    }
-    #stats {
-      margin: 0 auto;
-      width: 100%;
-      font-size: 12pt;
-    }
-    table {
-      width: 100%;
-      table-layout: fixed;
-    }
-    th, td {
-      padding: 6px;
-      text-align: left;
-    }
+    html, body { margin: 0; padding: 0; }
+    #loginSection, #controls, #menuArea, h2, #main p, #storeSelect, #orderDate, button:not(.print-btn) { display: none !important; }
+    #stats { margin: 0 auto; width: 100%; font-size: 12pt; }
+    table { width: 100%; table-layout: fixed; }
+    th, td { padding: 6px; text-align: left; }
   }
 </style>
 </head>
@@ -139,9 +66,11 @@ window.onload = async function() {
     const res = await fetch("https://polo1364.github.io/order/menu.json");
     const data = await res.json();
     const storeSelect = document.getElementById('storeSelect');
-    storeSelect.innerHTML = '<option value="">請選擇</option>';
     for (let store in data) {
-      storeSelect.innerHTML += `<option value="${store}">${store}</option>`;
+      const opt = document.createElement('option');
+      opt.value = store;
+      opt.textContent = store;
+      storeSelect.appendChild(opt);
     }
   } catch {
     alert("無法載入店家清單，請稍後再試！");
