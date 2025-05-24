@@ -140,9 +140,29 @@ db.ref('orders').on('value', snapshot => {
   const data = snapshot.val();
   if (!data) return stats.innerHTML = '尚無資料';
 
+  const today = new Date();
+
   for (let date in data) {
+    // 檢查是否超過 3 天
+    const dateObj = new Date(date);
+    const diffTime = today - dateObj;
+    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+    if (diffDays > 3) {
+      // 超過 3 天，自動刪除
+      db.ref(`orders/${date}`).remove()
+        .then(() => {
+          console.log(`已刪除 ${date} 的統計表`);
+        })
+        .catch(err => {
+          console.error(`刪除 ${date} 失敗：`, err);
+        });
+      continue; // 不顯示超過3天的資料
+    }
+
+    // 顯示統計表
     const div = document.createElement('div');
-    div.innerHTML = `<h4>${date} <button onclick="clearDate('${date}')">清除 ${date} 統計表</button></h4>`;
+    div.innerHTML = `<h4>${date}</h4>`;
     const table = document.createElement('table');
     table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
 
@@ -158,18 +178,16 @@ db.ref('orders').on('value', snapshot => {
       const users = grouped[item];
       total += users.length * users[0].price;
 
-      // 進階處理：使用者統計
+      // 統計同一人是否多次點餐
       const userCount = {};
       users.forEach(u => {
         if (!userCount[u.user]) userCount[u.user] = 0;
         userCount[u.user]++;
       });
 
-      // 顯示：若該使用者超過1份，才顯示 (共x份)
+      // 如果>1才顯示共幾份
       const names = Object.entries(userCount).map(([name, count]) => {
-        const countStr = count > 1 ? `（共${count}份）` : '';
-        const btn = name === user ? ` <button class='delete-btn' onclick='deleteRecord("${date}","${users.find(u => u.user === name).id}")'>刪除</button>` : "";
-        return `${name}${countStr}${btn}`;
+        return count > 1 ? `${name}（共${count}份）` : name;
       });
 
       table.innerHTML += `<tr><td>${item}</td><td>${names.join("、")}</td><td>${users.length}</td></tr>`;
