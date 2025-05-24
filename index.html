@@ -45,7 +45,7 @@
   </div>
 </div>
 
-<h3>即時統計</h3>
+<h3>人數統計</h3>
 <div id="stats"></div>
 
 <script>
@@ -97,18 +97,18 @@ async function loadMenu() {
     menuData = data[store];
     if (!menuData) throw new Error("菜單載入失敗");
 
-    let html = "<table><tr><th>品項</th><th>價格</th><th>選取</th></tr>";
+    let html = "<table><tr><th>品項</th><th>價格</th><th>備註</th><th>選取</th></tr>";
     for (let item in menuData) {
       const price = menuData[item];
       if (typeof price === 'object') {
-        // 有小碗/大碗等子項
         for (let sub in price) {
           html += `<tr><td>${item}（${sub}）</td><td>${price[sub]}</td>
+          <td><input type='text' placeholder='備註' data-item='${item}-${sub}'></td>
           <td><input type='radio' name='menuItem' value='${item}-${sub}' data-price='${price[sub]}'></td></tr>`;
         }
       } else {
-        // 單價品項
         html += `<tr><td>${item}</td><td>${price}</td>
+        <td><input type='text' placeholder='備註' data-item='${item}'></td>
         <td><input type='radio' name='menuItem' value='${item}' data-price='${price}'></td></tr>`;
       }
     }
@@ -126,10 +126,13 @@ function submitOrder() {
   const sel = document.querySelector("input[name='menuItem']:checked");
   if (!user || !date || !store || !sel) return alert("請填寫所有欄位");
 
-  const item = sel.value;                         // 可能是「品項」或「品項-大小」
-  const price = sel.getAttribute('data-price');   // 從 data-price 讀取價格
+  const item = sel.value;
+  const price = sel.getAttribute('data-price');
+  const noteInput = document.querySelector(`input[placeholder='備註'][data-item='${item}']`);
+  const note = noteInput ? noteInput.value.trim() : "";
+
   const key = db.ref('orders/' + date).push().key;
-  db.ref('orders/' + date + '/' + key).set({ user, item, price });
+  db.ref('orders/' + date + '/' + key).set({ user, item, price, note });
 }
 
 // 監聽統計表
@@ -142,34 +145,29 @@ db.ref('orders').on('value', snapshot => {
   const today = new Date();
 
   for (let date in data) {
-    // 檢查是否超過 3 天
     const dateObj = new Date(date);
     const diffTime = today - dateObj;
     const diffDays = diffTime / (1000 * 60 * 60 * 24);
 
     if (diffDays > 3) {
-      // 超過 3 天，自動刪除
-      db.ref(`orders/${date}`).remove()
-        .then(() => {
-          console.log(`已刪除 ${date} 的統計表`);
-        })
-        .catch(err => {
-          console.error(`刪除 ${date} 失敗：`, err);
-        });
+      db.ref(`orders/${date}`).remove().then(() => {
+        console.log(`已刪除 ${date} 的統計表`);
+      }).catch(err => {
+        console.error(`刪除 ${date} 失敗：`, err);
+      });
       continue;
     }
 
-    // 建立統計表容器
     const div = document.createElement('div');
     div.innerHTML = `<h4>${date}</h4>`;
     const table = document.createElement('table');
-    table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
+    table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th><th>備註</th></tr>";
 
     const grouped = {};
     for (let id in data[date]) {
-      const { user: u, item, price } = data[date][id];
+      const { user: u, item, price, note } = data[date][id];
       if (!grouped[item]) grouped[item] = [];
-      grouped[item].push({ user: u, id, price });
+      grouped[item].push({ user: u, id, price, note });
     }
 
     let total = 0;
@@ -177,14 +175,14 @@ db.ref('orders').on('value', snapshot => {
       const users = grouped[item];
       total += users.length * users[0].price;
 
-      // 統計同人多次點餐
       const userCount = {};
+      const notes = [];
       users.forEach(u => {
         if (!userCount[u.user]) userCount[u.user] = 0;
         userCount[u.user]++;
+        if (u.note) notes.push(`${u.user}：${u.note}`);
       });
 
-      // 顯示：若同人多份才加「共X份」
       const names = Object.entries(userCount).map(([name, count]) => {
         const delBtns = users
           .filter(u => u.user === name && u.user === user)
@@ -193,14 +191,20 @@ db.ref('orders').on('value', snapshot => {
         return count > 1 ? `${name}（共${count}份） ${delBtns}` : `${name} ${delBtns}`;
       });
 
-      table.innerHTML += `<tr><td>${item}</td><td>${names.join("、")}</td><td>${users.length}</td></tr>`;
+      table.innerHTML += `<tr>
+        <td>${item}</td>
+        <td>${names.join("、")}</td>
+        <td>${users.length}</td>
+        <td>${notes.join("<br>") || "-"}</td>
+      </tr>`;
     }
 
-    table.innerHTML += `<tr><td colspan="2">總金額</td><td>$${total}</td></tr>`;
+    table.innerHTML += `<tr><td colspan="3">總金額</td><td>$${total}</td></tr>`;
     div.appendChild(table);
 
-    // 加上「只列印這天」按鈕
+    // 加上只列印這天的按鈕
     const printBtn = document.createElement('button');
+    printBtn.classList.add('print-btn');
     printBtn.innerText = `列印 ${date} 統計表`;
     printBtn.onclick = () => printSection(div);
     div.appendChild(printBtn);
@@ -209,15 +213,12 @@ db.ref('orders').on('value', snapshot => {
   }
 });
 
-// 刪除紀錄
 function deleteRecord(date, id) {
-  if (!confirm("確定要刪除這筆紀錄？")) return;
-  db.ref(`orders/${date}/${id}`).remove()
-    .then(() => alert("已刪除！"))
+  if (!confirm("確定要刪除？")) return;
+  db.ref(`orders/${date}/${id}`).remove().then(() => alert("已刪除！"))
     .catch(err => alert(`刪除失敗：${err}`));
 }
 
-// 印單一天的函式
 function printSection(section) {
   const printWindow = window.open('', '', 'width=800,height=600');
   printWindow.document.write('<html><head><title>列印統計表</title>');
@@ -228,7 +229,6 @@ function printSection(section) {
   printWindow.document.close();
   printWindow.print();
 }
-
 </script>
 
 </body>
