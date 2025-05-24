@@ -157,7 +157,7 @@ db.ref('orders').on('value', snapshot => {
         .catch(err => {
           console.error(`刪除 ${date} 失敗：`, err);
         });
-      continue; // 不顯示超過 3 天的資料
+      continue;
     }
 
     // 建立統計表容器
@@ -166,7 +166,6 @@ db.ref('orders').on('value', snapshot => {
     const table = document.createElement('table');
     table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
 
-    // 對每個品項進行分組
     const grouped = {};
     for (let id in data[date]) {
       const { user: u, item, price } = data[date][id];
@@ -179,16 +178,20 @@ db.ref('orders').on('value', snapshot => {
       const users = grouped[item];
       total += users.length * users[0].price;
 
-      // 統計同一使用者的份數
+      // 統計同人多次點餐
       const userCount = {};
       users.forEach(u => {
         if (!userCount[u.user]) userCount[u.user] = 0;
         userCount[u.user]++;
       });
 
-      // 顯示「共幾份」(若只有一份就不顯示)
+      // 顯示：若同人多份才加「共X份」
       const names = Object.entries(userCount).map(([name, count]) => {
-        return count > 1 ? `${name}（共${count}份）` : name;
+        const delBtns = users
+          .filter(u => u.user === name && u.user === user)
+          .map(u => `<button class='delete-btn' onclick='deleteRecord("${date}","${u.id}")'>刪除</button>`)
+          .join("");
+        return count > 1 ? `${name}（共${count}份） ${delBtns}` : `${name} ${delBtns}`;
       });
 
       table.innerHTML += `<tr><td>${item}</td><td>${names.join("、")}</td><td>${users.length}</td></tr>`;
@@ -206,6 +209,14 @@ db.ref('orders').on('value', snapshot => {
     stats.appendChild(div);
   }
 });
+
+// 刪除紀錄
+function deleteRecord(date, id) {
+  if (!confirm("確定要刪除這筆紀錄？")) return;
+  db.ref(`orders/${date}/${id}`).remove()
+    .then(() => alert("已刪除！"))
+    .catch(err => alert(`刪除失敗：${err}`));
+}
 
 // 印單一天的函式
 function printSection(section) {
