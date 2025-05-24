@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>便當點餐系統（新香味）</title>
+<title>便當點餐系統</title>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <style>
@@ -74,7 +74,7 @@ function loadMenu() {
     .then(res => res.json())
     .then(data => {
       menuData = data[store];
-      if (!menuData) return alert("無法載入菜單，請稍後再試");
+      if (!menuData) return alert("無法載入菜單，請稍後再試！");
       let html = "<table><tr><th>品項</th><th>價格</th><th>選取</th></tr>";
       for (let item in menuData) {
         html += `<tr><td>${item}</td><td>${menuData[item]}</td>
@@ -83,7 +83,8 @@ function loadMenu() {
       html += "</table>";
       menuArea.innerHTML = html;
       dateArea.classList.remove('hidden');
-    });
+    })
+    .catch(() => alert("無法載入菜單，請稍後再試"));
 }
 
 function submitOrder() {
@@ -111,9 +112,9 @@ db.ref('orders').on('value', snapshot => {
     table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
     const grouped = {};
     for (let id in data[date]) {
-      const { user, item, price } = data[date][id];
+      const { user: u, item, price } = data[date][id];
       if (!grouped[item]) grouped[item] = [];
-      grouped[item].push({ user, id, price });
+      grouped[item].push({ user: u, id, price });
     }
     let total = 0;
     for (let item in grouped) {
@@ -132,7 +133,7 @@ db.ref('orders').on('value', snapshot => {
 });
 
 function deleteRecord(date, id) {
-  if (!confirm("確定要刪除這筆紀錄？")) return;
+  if (!confirm("確定要刪除？")) return;
   db.ref(`orders/${date}/${id}`).remove();
 }
 </script>
