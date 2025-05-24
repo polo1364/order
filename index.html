@@ -34,7 +34,7 @@ function loadMenu() {
   const store = document.getElementById('storeSelect').value;
   if (!store) return;
 
-  fetch('https://polo1364.github.io/bento-menu/menu.json')
+  fetch('https://polo1364.github.io/order/menu.json')
     .then(res => res.json())
     .then(data => {
       const menu = data[store];
