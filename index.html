@@ -145,22 +145,34 @@ db.ref('orders').on('value', snapshot => {
     div.innerHTML = `<h4>${date} <button onclick="clearDate('${date}')">清除 ${date} 統計表</button></h4>`;
     const table = document.createElement('table');
     table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
+
     const grouped = {};
     for (let id in data[date]) {
       const { user: u, item, price } = data[date][id];
       if (!grouped[item]) grouped[item] = [];
       grouped[item].push({ user: u, id, price });
     }
+
     let total = 0;
     for (let item in grouped) {
       const users = grouped[item];
       total += users.length * users[0].price;
-      const names = users.map(u => {
-        const btn = u.user === user ? ` <button class='delete-btn' onclick='deleteRecord("${date}","${u.id}")'>刪除</button>` : "";
-        return u.user + btn;
+
+      // 進階處理：使用者去重複 + 顯示次數
+      const userCount = {};
+      users.forEach(u => {
+        if (!userCount[u.user]) userCount[u.user] = 0;
+        userCount[u.user]++;
       });
+
+      const names = Object.entries(userCount).map(([name, count]) => {
+        const btn = name === user ? ` <button class='delete-btn' onclick='deleteRecord("${date}","${users.find(u => u.user === name).id}")'>刪除</button>` : "";
+        return `${name}（共${count}份）${btn}`;
+      });
+
       table.innerHTML += `<tr><td>${item}</td><td>${names.join("、")}</td><td>${users.length}</td></tr>`;
     }
+
     table.innerHTML += `<tr><td colspan="2">總金額</td><td>$${total}</td></tr>`;
     div.appendChild(table);
     stats.appendChild(div);
