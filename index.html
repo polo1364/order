@@ -181,22 +181,23 @@ db.ref('orders').on('value', snapshot => {
         const users = byStore[store][item];
         total += users.length * users[0].price;
 
-        const userCount = {};
+        // 統計「同人、同備註」當成一組
+        const userNoteMap = {};
         users.forEach(u => {
-          if (!userCount[u.user]) userCount[u.user] = { count: 0, notes: [], ids: [] };
-          userCount[u.user].count++;
-          if (u.note) userCount[u.user].notes.push(u.note);
-          userCount[u.user].ids.push(u.id);
+          const noteKey = u.note || "（無備註）";
+          const key = `${u.user}__${noteKey}`;
+          if (!userNoteMap[key]) userNoteMap[key] = { count: 0, ids: [], note: noteKey };
+          userNoteMap[key].count++;
+          userNoteMap[key].ids.push(u.id);
         });
 
-        // 格子顯示每個人
-        const userCells = Object.entries(userCount).map(([name, obj]) => {
-          const uniqueNotes = [...new Set(obj.notes.filter(n => n))];
-          const noteText = uniqueNotes.length > 0 ? `（${uniqueNotes.join("、")}）` : "";
-          const delBtn = name === user ? 
-            `<button class='delete-btn' onclick='deleteRecord("${date}","${obj.ids[0]}")'>刪除</button>` : "";
+        // 格子顯示
+        const userCells = Object.entries(userNoteMap).map(([key, obj]) => {
+          const [name, note] = key.split("__");
+          const showNote = note && note !== "（無備註）" ? `（${note}）` : "";
+          const delBtn = name === user ? `<button class='delete-btn' onclick='deleteRecord("${date}","${obj.ids[0]}")'>刪除</button>` : "";
           return `<div style="border: 1px solid #ccc; padding: 2px; margin: 2px; display: inline-block;">
-                    ${name}${obj.count > 1 ? `（共${obj.count}份）` : ""}${noteText} ${delBtn}
+                    ${name}${showNote}${obj.count > 1 ? `（共${obj.count}份）` : ""} ${delBtn}
                   </div>`;
         }).join("");
 
@@ -206,6 +207,7 @@ db.ref('orders').on('value', snapshot => {
       table.innerHTML += `<tr><td colspan="2">總金額</td><td>$${total}</td></tr>`;
       div.appendChild(table);
 
+      // 加上「只列印這天」按鈕
       const printBtn = document.createElement('button');
       printBtn.innerText = `列印 ${date} - ${store} 統計表`;
       printBtn.classList.add('print-btn');
