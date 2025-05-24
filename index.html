@@ -157,15 +157,16 @@ db.ref('orders').on('value', snapshot => {
         .catch(err => {
           console.error(`刪除 ${date} 失敗：`, err);
         });
-      continue; // 不顯示超過3天的資料
+      continue; // 不顯示超過 3 天的資料
     }
 
-    // 顯示統計表
+    // 建立統計表容器
     const div = document.createElement('div');
     div.innerHTML = `<h4>${date}</h4>`;
     const table = document.createElement('table');
     table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
 
+    // 對每個品項進行分組
     const grouped = {};
     for (let id in data[date]) {
       const { user: u, item, price } = data[date][id];
@@ -178,14 +179,14 @@ db.ref('orders').on('value', snapshot => {
       const users = grouped[item];
       total += users.length * users[0].price;
 
-      // 統計同一人是否多次點餐
+      // 統計同一使用者的份數
       const userCount = {};
       users.forEach(u => {
         if (!userCount[u.user]) userCount[u.user] = 0;
         userCount[u.user]++;
       });
 
-      // 如果>1才顯示共幾份
+      // 顯示「共幾份」(若只有一份就不顯示)
       const names = Object.entries(userCount).map(([name, count]) => {
         return count > 1 ? `${name}（共${count}份）` : name;
       });
@@ -195,9 +196,28 @@ db.ref('orders').on('value', snapshot => {
 
     table.innerHTML += `<tr><td colspan="2">總金額</td><td>$${total}</td></tr>`;
     div.appendChild(table);
+
+    // 加上「只列印這天」按鈕
+    const printBtn = document.createElement('button');
+    printBtn.innerText = `列印 ${date} 統計表`;
+    printBtn.onclick = () => printSection(div);
+    div.appendChild(printBtn);
+
     stats.appendChild(div);
   }
 });
+
+// 印單一天的函式
+function printSection(section) {
+  const printWindow = window.open('', '', 'width=800,height=600');
+  printWindow.document.write('<html><head><title>列印統計表</title>');
+  printWindow.document.write('<style>table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 4px 8px; }</style>');
+  printWindow.document.write('</head><body>');
+  printWindow.document.write(section.innerHTML);
+  printWindow.document.write('</body></html>');
+  printWindow.document.close();
+  printWindow.print();
+}
 
 // 刪除自己單筆
 function deleteRecord(date, id) {
