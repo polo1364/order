@@ -102,16 +102,16 @@ db.ref('orders').on('value', snapshot => {
     table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
     const grouped = {};
     for (let id in data[date]) {
-      const { user, item } = data[date][id];
+      const { user: u, item } = data[date][id];
       if (!grouped[item]) grouped[item] = [];
-      grouped[item].push({ user, id });
+      grouped[item].push({ user: u, id });
     }
     let total = 0;
     for (let item in grouped) {
       const users = grouped[item];
       total += users.length * menuData["好吃便當"][item];
       const names = users.map(u => {
-        const btn = u.user === user ? ` <button class='delete-btn' onclick='deleteRecord("${date}", "${u.id}")'>刪除</button>` : "";
+        const btn = u.user.trim() === user.trim() ? ` <button class='delete-btn' onclick='deleteRecord("${date}", "${u.id}")'>刪除</button>` : "";
         return u.user + btn;
       });
       table.innerHTML += `<tr><td>${item}</td><td>${names.join("、")}</td><td>${users.length}</td></tr>`;
