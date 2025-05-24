@@ -124,15 +124,16 @@ function submitOrder() {
   const date = document.getElementById('orderDate').value;
   const store = document.getElementById('storeSelect').value;
   const sel = document.querySelector("input[name='menuItem']:checked");
+  const noteInput = sel ? sel.parentNode.previousElementSibling.firstElementChild.value.trim() : "";
+
   if (!user || !date || !store || !sel) return alert("請填寫所有欄位");
 
   const item = sel.value;
   const price = sel.getAttribute('data-price');
-  const noteInput = document.querySelector(`input[placeholder='備註'][data-item='${item}']`);
-  const note = noteInput ? noteInput.value.trim() : "";
+  const note = noteInput || "";
 
   const key = db.ref('orders/' + date).push().key;
-  db.ref('orders/' + date + '/' + key).set({ user, item, price, note });
+  db.ref('orders/' + date + '/' + key).set({ user, item, price, note, store });  // ✅把「store」一併存進去
 }
 
 // 監聽統計表
