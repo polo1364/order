@@ -161,7 +161,7 @@ db.ref('orders').on('value', snapshot => {
     const div = document.createElement('div');
     div.innerHTML = `<h4>${date}</h4>`;
     const table = document.createElement('table');
-    table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th><th>備註</th></tr>";
+    table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
 
     const grouped = {};
     for (let id in data[date]) {
@@ -175,31 +175,31 @@ db.ref('orders').on('value', snapshot => {
       const users = grouped[item];
       total += users.length * users[0].price;
 
+      // 統計同人多次點餐 & 合併備註
       const userCount = {};
-      const notes = [];
       users.forEach(u => {
-        if (!userCount[u.user]) userCount[u.user] = 0;
-        userCount[u.user]++;
-        if (u.note) notes.push(`${u.user}：${u.note}`);
+        if (!userCount[u.user]) userCount[u.user] = { count: 0, notes: [] };
+        userCount[u.user].count++;
+        if (u.note) userCount[u.user].notes.push(u.note);
       });
 
-      const names = Object.entries(userCount).map(([name, count]) => {
+      const names = Object.entries(userCount).map(([name, obj]) => {
+        const notesText = obj.notes.length > 0 ? `（${obj.notes.join("、")}）` : "";
         const delBtns = users
           .filter(u => u.user === name && u.user === user)
           .map(u => `<button class='delete-btn' onclick='deleteRecord("${date}","${u.id}")'>刪除</button>`)
           .join("");
-        return count > 1 ? `${name}（共${count}份） ${delBtns}` : `${name} ${delBtns}`;
+        return obj.count > 1 ? `${name}${notesText}（共${obj.count}份） ${delBtns}` : `${name}${notesText} ${delBtns}`;
       });
 
       table.innerHTML += `<tr>
         <td>${item}</td>
         <td>${names.join("、")}</td>
         <td>${users.length}</td>
-        <td>${notes.join("<br>") || "-"}</td>
       </tr>`;
     }
 
-    table.innerHTML += `<tr><td colspan="3">總金額</td><td>$${total}</td></tr>`;
+    table.innerHTML += `<tr><td colspan="2">總金額</td><td>$${total}</td></tr>`;
     div.appendChild(table);
 
     // 加上只列印這天的按鈕
