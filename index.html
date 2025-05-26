@@ -7,23 +7,29 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <style>
   body {
-    position: relative;
-    font-family: sans-serif;
-    max-width: 600px;
-    margin: auto;
-    padding: 1em;
-    background: url('https://raw.githubusercontent.com/polo1364/order/refs/heads/main/7053209E-5BF7-4E75-A62D-7C2CCD77B04A.png') repeat;
-    background-size: 200px 200px;
-  }
-  body::before {
-    content: "";
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(255,255,255,0.6); /* 半透明白色背景 */
-    z-index: -1;
-  }
+  font-family: sans-serif;
+  max-width: 600px;
+  margin: auto;
+  padding: 1em;
+  background: url('https://raw.githubusercontent.com/polo1364/order/refs/heads/main/7053209E-5BF7-4E75-A62D-7C2CCD77B04A.png') repeat;
+  background-size: 200px 200px;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(255, 255, 255, 0.6); /* 半透明白色 */
+  pointer-events: none; /* 不擋住點擊 */
+  z-index: 0;
+}
+
+#main, #stats, #loginSection, #menuArea, #dateArea, h2, h3 {
+  position: relative; /* 讓內容在半透明層上面 */
+  z-index: 1;
+}
   h2 { color: #b30000; margin-bottom: 0.5em; }
   table, th, td {
     border: 1px solid #ccc; border-collapse: collapse;
