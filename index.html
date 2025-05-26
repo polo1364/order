@@ -192,13 +192,13 @@ db.ref('orders').on('value', snapshot => {
     // 依店家分組
     const byStore = {};
     for (let id in data[date]) {
-      const { user: u, item, price, note = "", store } = data[date][id];
+      const { user: u, item, price, note = "", store, paid = false } = data[date][id];
       const [itemName, size] = item.split("-");
       const displayItem = size ? `${itemName}（${size}）` : itemName;
 
       if (!byStore[store]) byStore[store] = {};
       if (!byStore[store][displayItem]) byStore[store][displayItem] = [];
-      byStore[store][displayItem].push({ user: u, id, price, note });
+      byStore[store][displayItem].push({ user: u, id, price, note, paid });
     }
 
     // 依店家建立統計表
@@ -212,34 +212,45 @@ db.ref('orders').on('value', snapshot => {
       table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
 
       let total = 0;
+      let paidTotal = 0;
+      let unpaidTotal = 0;
+
       for (let item in byStore[store]) {
         const users = byStore[store][item];
-        total += users.length * users[0].price;
+        const itemTotalPrice = users.length * users[0].price;
+        total += itemTotalPrice;
 
-        // 統計「同人、同備註」當成一組
+        // 統計「同人同備註」分開顯示
         const userNoteMap = {};
         users.forEach(u => {
           const noteKey = u.note || "（無備註）";
           const key = `${u.user}__${noteKey}`;
-          if (!userNoteMap[key]) userNoteMap[key] = { count: 0, ids: [], note: noteKey };
+          if (!userNoteMap[key]) userNoteMap[key] = { count: 0, ids: [], note: noteKey, paid: u.paid, price: u.price };
           userNoteMap[key].count++;
           userNoteMap[key].ids.push(u.id);
         });
 
-        // 格子顯示
         const userCells = Object.entries(userNoteMap).map(([key, obj]) => {
           const [name, note] = key.split("__");
           const showNote = note && note !== "（無備註）" ? `（${note}）` : "";
           const delBtn = name === user ? `<button class='delete-btn' onclick='deleteRecord("${date}","${obj.ids[0]}")'>刪除</button>` : "";
+          const paidCheckbox = `<input type='checkbox' ${obj.paid ? "checked" : ""} onclick='togglePaid("${date}","${obj.ids[0]}", this.checked)'>`;
+          // 累加已付款/未付款金額
+          const totalPrice = parseInt(obj.price) * obj.count;
+          if (obj.paid) paidTotal += totalPrice;
+          else unpaidTotal += totalPrice;
           return `<div style="border: 1px solid #ccc; padding: 2px; margin: 2px; display: inline-block;">
-                    ${name}${showNote}${obj.count > 1 ? `（共${obj.count}份）` : ""} ${delBtn}
+                    ${name}${showNote}${obj.count > 1 ? `（共${obj.count}份）` : ""} ${paidCheckbox} ${delBtn}
                   </div>`;
         }).join("");
 
         table.innerHTML += `<tr><td>${item}</td><td>${userCells}</td><td>${users.length}</td></tr>`;
       }
 
-      table.innerHTML += `<tr><td colspan="2">總金額</td><td>$${total}</td></tr>`;
+      // 加總金額 + 已付款/未付款顯示
+      table.innerHTML += `<tr>
+        <td colspan="3">總金額：$${total} ｜ 已付款：$${paidTotal} ｜ 未付款：$${unpaidTotal}</td>
+      </tr>`;
       div.appendChild(table);
 
       // 加上「只列印這天」按鈕
@@ -254,6 +265,12 @@ db.ref('orders').on('value', snapshot => {
   }
 });
 
+// ✅ togglePaid：打勾更新付款狀態
+function togglePaid(date, id, checked) {
+  db.ref(`orders/${date}/${id}`).update({ paid: checked });
+}
+
+// ✅ deleteRecord：刪除紀錄
 function deleteRecord(date, id) {
   if (!confirm("確定要刪除？")) return;
   db.ref(`orders/${date}/${id}`).remove().then(() => alert("已刪除！"))
