@@ -196,18 +196,21 @@ db.ref('orders').on('value', snapshot => {
         });
 
         const userCells = Object.entries(userNoteMap).map(([key, obj]) => {
-          const [name, note] = key.split("__");
-          const showNote = note && note !== "（無備註）" ? `（${note}）` : "";
-          const delBtn = `<button class='delete-btn' onclick='deleteRecord("${date}","${obj.ids[0]}")'>刪除</button>`;
-          const paidCheckbox = `<input type='checkbox' ${obj.paid ? "checked" : ""} onclick='togglePaid("${date}","${obj.ids[0]}", this.checked)'>`;
-          const totalPrice = parseInt(obj.price) * obj.count;
-          if (obj.paid) storePaid += totalPrice;
-          else storeUnpaid += totalPrice;
+  const [name, note] = key.split("__");
+  const showNote = note && note !== "（無備註）" ? `（${note}）` : "";
+  const delBtn = `<button class='delete-btn' onclick='deleteRecord("${date}","${obj.ids[0]}")'>刪除</button>`;
+  const paidCheckbox = `<input type='checkbox' ${obj.paid ? "checked" : ""} onclick='togglePaid("${date}","${obj.ids[0]}", this.checked)'>`;
+  const totalPrice = parseInt(obj.price) * obj.count;
+  if (obj.paid) storePaid += totalPrice;
+  else storeUnpaid += totalPrice;
 
-          return `<div style="border: 1px solid #ccc; background: rgba(255,255,255,0.6); border-radius: 4px; margin: 2px; padding: 2px 4px; display: inline-block;">
-                    ${name}${showNote}${obj.count > 1 ? `（共${obj.count}份）` : ""} ${paidCheckbox} ${delBtn}
-                  </div>`;
-        }).join("");
+  // 顯示單價資訊
+  const priceInfo = `｜單價：$${obj.price}`;
+
+  return `<div style="border: 1px solid #ccc; background: rgba(255,255,255,0.6); border-radius: 4px; margin: 2px; padding: 2px 4px; display: inline-block;">
+            ${name}${showNote}${obj.count > 1 ? `（共${obj.count}份）` : ""} ${priceInfo} ${paidCheckbox} ${delBtn}
+          </div>`;
+}).join("");
 
         table.innerHTML += `<tr><td>${item}</td><td>${userCells}</td><td>${users.length}</td></tr>`;
       }
