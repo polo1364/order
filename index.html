@@ -187,6 +187,8 @@ db.ref('orders').on('value', snapshot => {
         const userCells = users.map(u => {
           const paidCheckbox = `<input type='checkbox' ${u.paid ? "checked" : ""} onclick='togglePaid("${date}","${u.id}", this.checked)'>`;
           const noteShow = u.note ? `（${u.note}）` : "";
+          if (u.paid) storePaid += parseInt(u.price);
+          else storeUnpaid += parseInt(u.price);
           return `<div style="border: 1px solid #ccc; background: rgba(255,255,255,0.6); border-radius: 4px; margin: 2px; padding: 2px 4px; display: inline-block;">
                     <input value='${u.user}' onchange='updateUser("${date}","${u.id}", this.value)' style='width:60px;'/>
                     ${noteShow} ${paidCheckbox}
@@ -195,7 +197,9 @@ db.ref('orders').on('value', snapshot => {
         table.innerHTML += `<tr><td>${item}</td><td>${userCells}</td><td>${users.length}</td></tr>`;
       }
 
-      table.innerHTML += `<tr><td colspan="3">總金額：$${storeTotal}</td></tr>`;
+      table.innerHTML += `<tr>
+        <td colspan="3">總金額：$${storeTotal} ｜ 已付款：$${storePaid} ｜ 未付款：$${storeUnpaid}</td>
+      </tr>`;
       storeDiv.appendChild(table);
       dayDiv.appendChild(storeDiv);
     }
