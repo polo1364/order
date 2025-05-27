@@ -177,7 +177,7 @@ db.ref('orders').on('value', snapshot => {
       storeDiv.innerHTML = `<h5>${store}</h5>`;
 
       const table = document.createElement('table');
-      table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th><th>單價</th></tr>";
+      table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th><th>單價</th><th>小計</th></tr>";
 
       let storeTotal = 0, storePaid = 0, storeUnpaid = 0;
 
@@ -209,17 +209,17 @@ db.ref('orders').on('value', snapshot => {
                   </div>`;
         }).join("");
 
-        // 新增單價欄位
         table.innerHTML += `<tr>
           <td>${item}</td>
           <td>${userCells}</td>
           <td>${users.length}</td>
           <td>$${users[0].price}</td>
+          <td>$${itemTotalPrice}</td>
         </tr>`;
       }
 
       table.innerHTML += `<tr>
-        <td colspan="4">總金額：$${storeTotal} ｜ 已付款：$${storePaid} ｜ 未付款：$${storeUnpaid}</td>
+        <td colspan="5">總金額：$${storeTotal} ｜ 已付款：$${storePaid} ｜ 未付款：$${storeUnpaid}</td>
       </tr>`;
       storeDiv.appendChild(table);
       dayDiv.appendChild(storeDiv);
