@@ -177,7 +177,7 @@ db.ref('orders').on('value', snapshot => {
       storeDiv.innerHTML = `<h5>${store}</h5>`;
 
       const table = document.createElement('table');
-      table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th></tr>";
+      table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th><th>單價</th></tr>";
 
       let storeTotal = 0, storePaid = 0, storeUnpaid = 0;
 
@@ -196,26 +196,31 @@ db.ref('orders').on('value', snapshot => {
         });
 
         const userCells = Object.entries(userNoteMap).map(([key, obj]) => {
-  const [name, note] = key.split("__");
-  const showNote = note && note !== "（無備註）" ? `（${note}）` : "";
-  const delBtn = `<button class='delete-btn' onclick='deleteRecord("${date}","${obj.ids[0]}")'>刪除</button>`;
-  const paidCheckbox = `<input type='checkbox' ${obj.paid ? "checked" : ""} onclick='togglePaid("${date}","${obj.ids[0]}", this.checked)'>`;
-  const totalPrice = parseInt(obj.price) * obj.count;
-  if (obj.paid) storePaid += totalPrice;
-  else storeUnpaid += totalPrice;
+          const [name, note] = key.split("__");
+          const showNote = note && note !== "（無備註）" ? `（${note}）` : "";
+          const delBtn = `<button class='delete-btn' onclick='deleteRecord("${date}","${obj.ids[0]}")'>刪除</button>`;
+          const paidCheckbox = `<input type='checkbox' ${obj.paid ? "checked" : ""} onclick='togglePaid("${date}","${obj.ids[0]}", this.checked)'>`;
+          const totalPrice = parseInt(obj.price) * obj.count;
+          if (obj.paid) storePaid += totalPrice;
+          else storeUnpaid += totalPrice;
 
-  // 顯示單價資訊
-  const priceInfo = `｜單價：$${obj.price}`;
+          return `<div style="border: 1px solid #ccc; background: rgba(255,255,255,0.6); border-radius: 4px; margin: 2px; padding: 2px 4px; display: inline-block;">
+                    ${name}${showNote}${obj.count > 1 ? `（共${obj.count}份）` : ""} ${paidCheckbox} ${delBtn}
+                  </div>`;
+        }).join("");
 
-  return `<div style="border: 1px solid #ccc; background: rgba(255,255,255,0.6); border-radius: 4px; margin: 2px; padding: 2px 4px; display: inline-block;">
-            ${name}${showNote}${obj.count > 1 ? `（共${obj.count}份）` : ""} ${priceInfo} ${paidCheckbox} ${delBtn}
-          </div>`;
-}).join("");
-
-        table.innerHTML += `<tr><td>${item}</td><td>${userCells}</td><td>${users.length}</td></tr>`;
+        // 新增單價欄位
+        table.innerHTML += `<tr>
+          <td>${item}</td>
+          <td>${userCells}</td>
+          <td>${users.length}</td>
+          <td>$${users[0].price}</td>
+        </tr>`;
       }
 
-      table.innerHTML += `<tr><td colspan="3">總金額：$${storeTotal} ｜ 已付款：$${storePaid} ｜ 未付款：$${storeUnpaid}</td></tr>`;
+      table.innerHTML += `<tr>
+        <td colspan="4">總金額：$${storeTotal} ｜ 已付款：$${storePaid} ｜ 未付款：$${storeUnpaid}</td>
+      </tr>`;
       storeDiv.appendChild(table);
       dayDiv.appendChild(storeDiv);
     }
