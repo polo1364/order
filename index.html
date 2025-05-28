@@ -181,7 +181,7 @@ db.ref('orders').on('value', snapshot => {
       for (let item in byStore[store]) {
         const users = byStore[store][item];
 
-        // 判斷有無備註加價
+        // 檢查有無備註加價
         let extra = 0;
         users.forEach(u => {
           const match = u.note.match(/加(\d+)元/);
