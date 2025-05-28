@@ -3,53 +3,80 @@
 <head>
 <meta charset="UTF-8" />
 <title>便當點餐系統</title>
-<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <style>
-  body {
-    font-family: sans-serif;
-    max-width: 800px;
-    margin: auto;
-    padding: 1em;
-    background: url('https://raw.githubusercontent.com/polo1364/order/refs/heads/main/FB5BBC50-D21A-4F57-AF32-ABE798E3ABA1.png') repeat;
-    background-size: 200px 200px;
-    position: relative;
-  }
-  body::before {
-    content: "";
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(255, 255, 255, 0.7); /* 半透明白色層，讓文字清晰可見 */
-    pointer-events: none;
-    z-index: 0;
-  }
-  #main, #reminder, #orders, h2, h3, table, th, td {
-    position: relative;
-    z-index: 1;
-  }
-  h2 { color: #b30000; margin-bottom: 0.5em; }
-  h3 { margin: 0.5em 0; }
-  table, th, td {
-    border: 1px solid #ccc; border-collapse: collapse;
-    padding: 4px 8px;
-    background: #fff;
-  }
-  th { background: #eee; }
-  .hidden { display: none; }
-  .section {
-    margin-bottom: 1em;
-    border: 1px solid #ccc;
-    padding: 0.5em;
-    background: #fff;
-    border-radius: 4px;
-  }
-  @media print {
-    html, body { margin: 0; padding: 0; background: #fff; }
-    button, input, select { display: none !important; }
-    .section { page-break-after: always; }
-  }
+body {
+  font-family: sans-serif;
+  max-width: 800px;
+  margin: auto;
+  padding: 1em;
+  background: url('https://raw.githubusercontent.com/polo1364/order/refs/heads/main/FB5BBC50-D21A-4F57-AF32-ABE798E3ABA1.png') repeat;
+  background-size: 200px 200px;
+  position: relative;
+}
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+  z-index: 0;
+}
+#main, #reminder, #orders, h2, h3, table, th, td {
+  position: relative;
+  z-index: 1;
+}
+h2 {
+  color: #b30000;
+  margin-bottom: 0.5em;
+}
+table, th, td {
+  border: 1px solid #ccc;
+  border-collapse: collapse;
+  padding: 4px 8px;
+  background: #fff;
+}
+th { background: #eee; }
+.hidden { display: none; }
+.section {
+  margin-bottom: 1em;
+  border: 1px solid #ccc;
+  padding: 0.5em;
+  background: #fff;
+  border-radius: 4px;
+}
+@media print {
+  html, body { margin: 0; padding: 0; background: #fff; }
+  button, input, select { display: none !important; }
+  .section { page-break-after: always; }
+}
+#reminder {
+  margin-bottom: 1em;
+  border: 1px solid #ccc;
+  padding: 0.5em;
+  background: #fff;
+  border-radius: 4px;
+}
+.reminder-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5em;
+}
+.reminder-item label {
+  width: 80px;
+}
+.reminder-item select {
+  flex: 1;
+}
+.reminder-item .date {
+  margin-left: 0.5em;
+  font-size: 0.9em;
+  color: #555;
+}
 </style>
 </head>
 <body>
@@ -72,40 +99,46 @@ const db = firebase.database();
 let storeList = [];
 let reminderData = {};
 
-// 取得店家清單
 async function loadStores() {
   const res = await fetch("menu.json");
   const data = await res.json();
   storeList = Object.keys(data);
 }
 
-// 取得提醒設定
 async function loadReminder() {
   const snap = await db.ref('reminder').once('value');
   reminderData = snap.val() || { 一: "", 二: "", 三: "", 四: "", 五: "" };
   renderReminder();
 }
 
-// 顯示提醒下拉選單
-function renderReminder() {
+async function renderReminder() {
   const days = ["一", "二", "三", "四", "五"];
+  const today = new Date();
+  const nextMonday = new Date(today);
+  nextMonday.setDate(today.getDate() + (8 - today.getDay()));
   let html = "";
-  days.forEach(d => {
-    html += `<label>星期${d}：
-      <select class="reminder-select" id="day_${d}">
+  days.forEach((d, idx) => {
+    const date = new Date(nextMonday);
+    date.setDate(date.getDate() + idx);
+    const yyyyMMdd = date.toISOString().split('T')[0];
+    html += `<div class="reminder-item">
+      <label>星期${d}：</label>
+      <select id="day_${d}">
         <option value="">請選擇</option>
         ${storeList.map(s => `<option value="${s}" ${reminderData[d] === s ? "selected" : ""}>${s}</option>`).join("")}
-      </select></label>`;
+      </select>
+      <span class="date">（${yyyyMMdd}）</span>
+    </div>`;
   });
   document.getElementById('reminderSelects').innerHTML = html;
 }
 
-// 儲存提醒設定
 function saveReminder() {
   const days = ["一", "二", "三", "四", "五"];
   const newReminder = {};
   days.forEach(d => {
-    newReminder[d] = document.getElementById(`day_${d}`).value;
+    const val = document.getElementById(`day_${d}`).value;
+    newReminder[d] = val;
   });
   db.ref('reminder').set(newReminder);
   reminderData = newReminder;
@@ -113,7 +146,6 @@ function saveReminder() {
   renderOrders();
 }
 
-// 渲染訂餐表
 async function renderOrders() {
   document.getElementById('orders').innerHTML = '';
   const res = await fetch("menu.json");
@@ -140,7 +172,6 @@ async function renderOrders() {
       <div id="stats_${yyyyMMdd}"></div>`;
     document.getElementById('orders').appendChild(section);
 
-    // 菜單內容
     const menuDiv = document.getElementById(`menu_${yyyyMMdd}`);
     let html = "<table><tr><th>品項</th><th>價格</th><th>備註</th><th>選取</th></tr>";
     const menu = menuData[store];
@@ -158,22 +189,59 @@ async function renderOrders() {
           <td><input type='radio' name='menu_${yyyyMMdd}' value='${item}' data-price='${price}'></td></tr>`;
       }
     }
-    html += `<input type="text" id="user_${yyyyMMdd}" placeholder="輸入姓名/工號" />
+    html += `</table>
+      <input type="text" id="user_${yyyyMMdd}" placeholder="輸入姓名/工號" />
       <button onclick='submitOrder("${yyyyMMdd}","${store}")'>送出</button>`;
     menuDiv.innerHTML = html;
 
-    // 監聽統計表
-    db.ref('orders/' + yyyyMMdd).on('value', snap => renderStats(yyyyMMdd, snap.val()));
+    db.ref('orders/' + yyyyMMdd).on('value', snap => {
+      const data = snap.val();
+      const statsDiv = document.getElementById(`stats_${yyyyMMdd}`);
+      if (!data) { statsDiv.innerHTML = '尚無資料'; return; }
+
+      let table = "<table><tr><th>品項</th><th>人員</th><th>數量</th><th>單價</th><th>小計</th></tr>";
+      let total = 0, paidTotal = 0, unpaidTotal = 0;
+      const byItem = {};
+      for (let id in data) {
+        const { user, item, price, note = "", paid = false } = data[id];
+        const [itemName, size] = item.split("-");
+        const displayItem = size ? `${itemName}（${size}）` : itemName;
+        if (!byItem[displayItem]) byItem[displayItem] = [];
+        byItem[displayItem].push({ user, id, price, note, paid });
+      }
+      for (let item in byItem) {
+        const users = byItem[item];
+        const unitPrice = parseInt(users[0].price);
+        const itemCount = users.length;
+        let itemTotal = 0;
+        users.forEach(u => {
+          const extraMatch = u.note.match(/加(\d+)元/);
+          const extra = extraMatch ? parseInt(extraMatch[1]) : 0;
+          const finalPrice = unitPrice + extra;
+          itemTotal += finalPrice;
+          if (u.paid) paidTotal += finalPrice;
+          else unpaidTotal += finalPrice;
+        });
+        total += itemTotal;
+        const priceCell = `$${unitPrice}<br><span style="font-size: 0.8em; color: #555;">（共 ${itemCount} 份）</span>`;
+        const userCells = users.map(u => {
+          const paidCk = `<input type='checkbox' ${u.paid ? "checked" : ""} onclick='togglePaid("${yyyyMMdd}","${u.id}", this.checked)'>`;
+          const delBtn = `<button onclick='deleteOrder("${yyyyMMdd}","${u.id}")'>刪除</button>`;
+          return `<div>${u.user}${u.note ? `（${u.note}）` : ""} ${paidCk} ${delBtn}</div>`;
+        }).join("");
+        table += `<tr><td>${item}</td><td>${userCells}</td><td>${itemCount}</td><td>${priceCell}</td><td>$${itemTotal}</td></tr>`;
+      }
+      table += `<tr><td colspan="5">總金額：$${total} ｜ 已付款：$${paidTotal} ｜ 未付款：$${unpaidTotal}</td></tr></table>
+        <button onclick='printSection("stats_${yyyyMMdd}")'>列印統計表</button>`;
+      statsDiv.innerHTML = table;
+    });
   }
 }
 
-// 顯示/隱藏菜單
 function toggleMenu(date) {
   const div = document.getElementById(`menu_${date}`);
   div.style.display = div.style.display === "none" ? "block" : "none";
 }
-
-// 提交訂單
 function submitOrder(date, store) {
   const sel = document.querySelector(`input[name='menu_${date}']:checked`);
   const user = document.getElementById(`user_${date}`).value.trim();
@@ -186,57 +254,8 @@ function submitOrder(date, store) {
   db.ref('orders/' + date + '/' + key).set({ user, item, price, note, store });
   alert("已送出！");
 }
-
-// 渲染統計表
-function renderStats(date, data) {
-  const statsDiv = document.getElementById(`stats_${date}`);
-  if (!data) { statsDiv.innerHTML = '尚無資料'; return; }
-
-  let table = "<table><tr><th>品項</th><th>人員</th><th>數量</th><th>單價</th><th>小計</th></tr>";
-  let total = 0, paidTotal = 0, unpaidTotal = 0;
-  const byItem = {};
-
-  for (let id in data) {
-    const { user, item, price, note = "", paid = false } = data[id];
-    const [itemName, size] = item.split("-");
-    const displayItem = size ? `${itemName}（${size}）` : itemName;
-    if (!byItem[displayItem]) byItem[displayItem] = [];
-    byItem[displayItem].push({ user, id, price, note, paid });
-  }
-
-  for (let item in byItem) {
-    const users = byItem[item];
-    const unitPrice = parseInt(users[0].price);
-    const itemCount = users.length;
-    let itemTotal = 0;
-    users.forEach(u => {
-      const extra = u.note.match(/加(\d+)元/) ? parseInt(u.note.match(/加(\d+)元/)[1]) : 0;
-      const finalPrice = unitPrice + extra;
-      itemTotal += finalPrice;
-      if (u.paid) paidTotal += finalPrice;
-      else unpaidTotal += finalPrice;
-    });
-    total += itemTotal;
-    const priceCell = `$${unitPrice}<br><span style="font-size: 0.8em; color: #555;">（共 ${itemCount} 份）</span>`;
-    const userCells = users.map(u => {
-      const paidCk = `<input type='checkbox' ${u.paid ? "checked" : ""} onclick='togglePaid("${date}","${u.id}", this.checked)'>`;
-      const delBtn = `<button onclick='deleteOrder("${date}","${u.id}")'>刪除</button>`;
-      return `<div>${u.user}${u.note ? `（${u.note}）` : ""} ${paidCk} ${delBtn}</div>`;
-    }).join("");
-    table += `<tr><td>${item}</td><td>${userCells}</td><td>${itemCount}</td><td>${priceCell}</td><td>$${itemTotal}</td></tr>`;
-  }
-  table += `<tr><td colspan="5">總金額：$${total} ｜ 已付款：$${paidTotal} ｜ 未付款：$${unpaidTotal}</td></tr></table>
-    <button onclick='printSection("stats_${date}")'>列印統計表</button>`;
-  statsDiv.innerHTML = table;
-}
-
-// 更新付款狀態
 function togglePaid(date, id, checked) { db.ref(`orders/${date}/${id}`).update({ paid: checked }); }
-
-// 刪除訂單
 function deleteOrder(date, id) { if (confirm("確定刪除？")) db.ref(`orders/${date}/${id}`).remove(); }
-
-// 列印統計表
 function printSection(id) {
   const statsDiv = document.getElementById(id).parentElement;
   const win = window.open('', '', 'width=800,height=600');
