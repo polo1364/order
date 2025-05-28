@@ -50,18 +50,24 @@
     background: #fff;
     border-radius: 4px;
   }
-  /* 列印模式，隱藏所有互動元素 */
+
+  /* 🔥 新增: 把「刪除」和「顯示菜單」按鈕額外指定 class，方便統一隱藏 */
+  .delete-btn, .print-btn, .toggle-btn {
+    display: inline-block;
+  }
+
+  /* 🖨️ 列印時，完全隱藏互動元素 */
   @media print {
     html, body {
-      margin: 0; 
-      padding: 0; 
+      margin: 0;
+      padding: 0;
       background: #fff !important;
     }
-    button, input[type="text"], input[type="checkbox"], input[type="radio"], select {
+    button, input, select {
       display: none !important;
       visibility: hidden !important;
     }
-    .delete-btn, .print-btn, .toggle-btn, .reminder-select, .reminder-edit-btn {
+    .delete-btn, .print-btn, .toggle-btn, .reminder-select {
       display: none !important;
       visibility: hidden !important;
     }
