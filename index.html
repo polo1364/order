@@ -6,12 +6,61 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <style>
-body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 1em; background: #f9f9f9; }
-h2 { color: #b30000; margin-bottom: 0.5em; }
-table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 4px 8px; background: #fff; }
-th { background: #eee; }
-.section { margin-bottom: 1em; border: 1px solid #ccc; padding: 0.5em; background: #fff; border-radius: 4px; }
-.reminder-select { width: 100%; margin-bottom: 0.5em; }
+body {
+  font-family: sans-serif;
+  max-width: 800px;
+  margin: auto;
+  padding: 1em;
+  background: url('https://raw.githubusercontent.com/polo1364/order/refs/heads/main/FB5BBC50-D21A-4F57-AF32-ABE798E3ABA1.png') repeat;
+  background-size: 200px 200px;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.7); /* 半透明白色層，讓文字清晰可見 */
+  pointer-events: none;
+  z-index: 0;
+}
+
+#main, #reminder, #orders, h2, h3, table, th, td {
+  position: relative;
+  z-index: 1;
+}
+
+h2 {
+  color: #b30000;
+  margin-bottom: 0.5em;
+}
+
+table, th, td {
+  border: 1px solid #ccc;
+  border-collapse: collapse;
+  padding: 4px 8px;
+  background: #fff;
+}
+
+th {
+  background: #eee;
+}
+
+.hidden {
+  display: none;
+}
+
+.section {
+  margin-bottom: 1em;
+  border: 1px solid #ccc;
+  padding: 0.5em;
+  background: #fff;
+  border-radius: 4px;
+}
+
 @media print {
   html, body { margin: 0; padding: 0; background: #fff; }
   button, input, select { display: none !important; }
