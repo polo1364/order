@@ -110,7 +110,9 @@ async function renderOrders() {
   document.getElementById('orders').innerHTML = '';
   const today = new Date();
   const nextMonday = new Date(today);
-  nextMonday.setDate(today.getDate() + (8 - today.getDay()));
+const day = today.getDay();
+const diff = (day === 0 ? 1 : 8 - day);
+nextMonday.setDate(today.getDate() + diff);
   const days = ["一", "二", "三", "四", "五"];
   for (let idx = 0; idx < days.length; idx++) {
     const d = days[idx];
