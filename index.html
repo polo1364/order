@@ -45,13 +45,16 @@
     background: #fff;
     border-radius: 4px;
   }
-  .delete-btn, .print-btn, .toggle-btn, .reminder-select, .reminder-edit-btn {
-    display: inline-block;
-  }
+  /* 確保列印時隱藏所有互動元素 */
   @media print {
-    html, body { margin: 0; padding: 0; background: #fff !important; }
-    button, input, select,
-    .delete-btn, .print-btn, .toggle-btn, .reminder-select, .reminder-edit-btn {
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #fff !important;
+    }
+    /* 全面隱藏所有按鈕和表單欄位 */
+    button, input, select, textarea,
+    [onclick], .delete-btn, .print-btn, .toggle-btn, .reminder-select, .reminder-edit-btn, .submit-btn {
       display: none !important;
       visibility: hidden !important;
     }
