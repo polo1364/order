@@ -109,29 +109,31 @@ function saveNextWeekReminder() {
 async function renderOrders() {
   document.getElementById('orders').innerHTML = '';
   const today = new Date();
-  const day = today.getDay();
-  const diff = (day === 0 ? 1 : 8 - day); // 距下週一的天數
+
+  // ⭐️ 正確取得「下週一」日期
   const nextMonday = new Date(today);
+  const diff = (1 - today.getDay() + 7) % 7;
   nextMonday.setDate(today.getDate() + diff);
 
   const days = ["一", "二", "三", "四", "五"];
-  for (let idx = 0; idx < days.length; idx++) {
-    const d = days[idx];
+  for (let idx = 0; idx < 5; idx++) {
     const date = new Date(nextMonday);
     date.setDate(nextMonday.getDate() + idx);
     const yyyyMMdd = date.toISOString().split('T')[0];
-    const store = nextWeekReminder[d] || "未設定";
+    const weekDay = days[idx];
+
+    const store = nextWeekReminder[weekDay] || "未設定";
     if (store === "未設定") continue;
 
     const section = document.createElement('div');
     section.className = 'section';
-    section.innerHTML = `<h4>${yyyyMMdd}（星期${d}）：${store}
+    section.innerHTML = `<h4>${yyyyMMdd}（星期${weekDay}）：${store}
       <button class="action-btn" onclick="toggleMenu('${yyyyMMdd}')">顯示/隱藏菜單</button></h4>
       <div id="menu_${yyyyMMdd}" style="display:none;"></div>
       <div id="stats_${yyyyMMdd}"></div>`;
     document.getElementById('orders').appendChild(section);
 
-    // ⭐️ 生成菜單
+    // 生成菜單
     const menuDiv = document.getElementById(`menu_${yyyyMMdd}`);
     let html = "<table><tr><th>品項</th><th>價格</th><th>備註</th><th>選取</th></tr>";
     const menu = menuData[store];
@@ -153,7 +155,7 @@ async function renderOrders() {
       <button class="action-btn" onclick='submitOrder("${yyyyMMdd}","${store}")'>送出</button></td></tr></table>`;
     menuDiv.innerHTML = html;
 
-    // ⭐️ 監聽訂單
+    // ⭐️ 監聽並生成統計表
     db.ref('orders/' + yyyyMMdd).on('value', snap => {
       const data = snap.val();
       const statsDiv = document.getElementById(`stats_${yyyyMMdd}`);
