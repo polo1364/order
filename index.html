@@ -14,7 +14,9 @@ body {
   background: url('https://raw.githubusercontent.com/polo1364/order/refs/heads/main/FB5BBC50-D21A-4F57-AF32-ABE798E3ABA1.png') repeat;
   background-size: 200px 200px;
   position: relative;
+  color: #222; /* 強化文字顏色 */
 }
+
 body::before {
   content: "";
   position: fixed;
@@ -22,21 +24,42 @@ body::before {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.85); /* 增加白色層讓文字更清楚 */
   pointer-events: none;
   z-index: 0;
 }
-#main, #reminder, #orders, h2, h3, table, th, td { position: relative; z-index: 1; }
+
+#main, #reminder, #orders, h2, h3, table, th, td {
+  position: relative;
+  z-index: 1;
+}
+
 h2 { color: #b30000; margin-bottom: 0.5em; }
-h3 { margin-top: 1em; }
-table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 4px 8px; background: #fff; }
+h3 { margin-bottom: 0.5em; }
+
+table, th, td {
+  border: 1px solid #ccc;
+  border-collapse: collapse;
+  padding: 4px 8px;
+  background: #fff;
+}
+
 th { background: #eee; }
+
 .hidden { display: none; }
-.section { margin-bottom: 1em; border: 1px solid #ccc; padding: 0.5em; background: #fff; border-radius: 4px; }
-.day-label { display: block; margin-bottom: 0.3em; }
+
+.section {
+  margin-bottom: 1em;
+  border: 1px solid #ccc;
+  padding: 0.5em;
+  background: #fff;
+  border-radius: 4px;
+}
+
 @media print {
-  html, body { margin: 0; padding: 0; background: #fff; }
-  button, input, select, .delete-btn, .print-btn { display: none !important; }
+  button, input[type='checkbox'], input[type='radio'], input[type='date'], input[type='text'], select {
+    display: none !important;
+  }
   .section { page-break-after: always; }
 }
 </style>
