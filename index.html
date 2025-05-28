@@ -6,47 +6,14 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <style>
-  body {
-    font-family: sans-serif;
-    max-width: 600px;
-    margin: auto;
-    padding: 1em;
-    background: url('https://raw.githubusercontent.com/polo1364/order/refs/heads/main/7053209E-5BF7-4E75-A62D-7C2CCD77B04A.png') repeat;
-    background-size: 200px 200px;
-    position: relative;
-  }
-  body::before {
-    content: "";
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(255, 255, 255, 0.6);
-    pointer-events: none;
-    z-index: 0;
-  }
-  #main, #stats, #menuArea, #dateArea, h2, h3 {
-    position: relative;
-    z-index: 1;
-  }
+  body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 1em; background: #f9f9f9; }
   h2 { color: #b30000; margin-bottom: 0.5em; }
-  table, th, td {
-    border: 1px solid #ccc; border-collapse: collapse;
-    padding: 4px 8px; background: #fff;
-  }
+  table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 4px 8px; background: #fff; }
   th { background: #eee; }
   .hidden { display: none; }
-  @media print {
-    html, body { margin: 0; padding: 0; background: #fff; }
-    #menuArea, h2, #main p, #storeSelect, #orderDate, #userNameInput, button:not(.print-btn) { display: none !important; }
-    #stats { margin: 0 auto; width: 100%; font-size: 12pt; }
-    table { width: 100%; table-layout: fixed; }
-    th, td { padding: 6px; text-align: left; }
-  }
-  /* 模態視窗樣式 */
-  .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4); }
-  .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 500px; }
-  .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
-  .close:hover, .close:focus { color: black; cursor: pointer; }
+  .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; }
+  .modal-content { background: #fff; padding: 1em; border-radius: 4px; max-width: 400px; width: 100%; }
+  .modal-content h3 { margin-top: 0; }
 </style>
 </head>
 <body>
@@ -56,152 +23,127 @@
 <!-- 提醒視窗 -->
 <div id="reminderModal" class="modal">
   <div class="modal-content">
-    <span class="close" id="closeReminder">&times;</span>
-    <h3>下週便當店家提醒</h3>
-    <table id="reminderTable">
-      <thead>
-        <tr><th>日期</th><th>星期</th><th>店家名稱</th></tr>
-      </thead>
-      <tbody id="reminderBody"></tbody>
-    </table>
+    <h3>下週店家提醒</h3>
+    <div id="reminderBody"></div>
     <button id="saveReminder">儲存</button>
   </div>
 </div>
 
-<div id="main">
-  <label>店家：
-    <select id="storeSelect" onchange="loadMenu()"><option value="">請選擇</option></select>
-  </label>
-  <div id="menuArea"></div>
-  <div id="dateArea" class="hidden">
-    <input type="date" id="orderDate" />
-    <input type="text" id="userNameInput" placeholder="輸入姓名/工號" />
-    <button onclick="submitOrder()">送出</button>
-  </div>
-</div>
-
-<h3>人數統計</h3>
-<div id="stats"></div>
+<h3>下週店家與菜單</h3>
+<div id="reminderStores"></div>
 
 <script>
-// Firebase 初始化
-const firebaseConfig = { databaseURL: "https://bento-5bb36-default-rtdb.firebaseio.com/" };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-let menuData = {};
+const reminderDays = ['星期一', '星期二', '星期三', '星期四', '星期五'];
 
-// 提醒視窗
-function getNextWeekDates() {
-  const today = new Date();
-  const nextMonday = new Date();
-  const day = today.getDay();
-  const diff = (8 - day) % 7;
-  nextMonday.setDate(today.getDate() + diff);
-  const dates = [];
-  for (let i = 0; i < 5; i++) {
-    const date = new Date(nextMonday);
-    date.setDate(nextMonday.getDate() + i);
-    dates.push(date);
-  }
-  return dates;
-}
-function showReminderModal() {
-  const modal = document.getElementById('reminderModal');
-  const tbody = document.getElementById('reminderBody');
-  tbody.innerHTML = '';
-  const dates = getNextWeekDates();
-  const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
-  const savedData = JSON.parse(localStorage.getItem('reminderData')) || {};
-
-  dates.forEach(date => {
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
-    const dd = String(date.getDate()).padStart(2, '0');
-    const dateStr = `${yyyy}-${mm}-${dd}`;
-    const weekDay = weekDays[date.getDay()];
-    const store = savedData[dateStr] || '';
-    const row = document.createElement('tr');
-    row.innerHTML = `<td>${dateStr}</td><td>星期${weekDay}</td><td><input type="text" value="${store}" data-date="${dateStr}"></td>`;
-    tbody.appendChild(row);
-  });
-  modal.style.display = 'block';
-}
-document.getElementById('closeReminder').onclick = () => document.getElementById('reminderModal').style.display = 'none';
-document.getElementById('saveReminder').onclick = () => {
-  const inputs = document.querySelectorAll('#reminderBody input');
-  const data = {};
-  inputs.forEach(input => { const date = input.getAttribute('data-date'); const store = input.value.trim(); if (store) data[date] = store; });
-  localStorage.setItem('reminderData', JSON.stringify(data));
-  alert('已儲存提醒資料！'); document.getElementById('reminderModal').style.display = 'none';
-};
-window.onload = () => {
-  showReminderModal();
-  // 載入店家選單
-  fetch("https://polo1364.github.io/order/menu.json").then(res => res.json()).then(data => {
-    const storeSelect = document.getElementById('storeSelect');
-    for (let store in data) {
-      const opt = document.createElement('option');
-      opt.value = store;
-      opt.textContent = store;
-      storeSelect.appendChild(opt);
-    }
-  }).catch(() => alert("無法載入店家清單，請稍後再試！"));
-};
-
-async function loadMenu() {
-  const store = document.getElementById('storeSelect').value;
-  const menuArea = document.getElementById('menuArea');
-  const dateArea = document.getElementById('dateArea');
-  menuArea.innerHTML = ""; dateArea.classList.add('hidden');
-  if (!store) return;
+// 生成下拉式提醒視窗
+window.onload = async () => {
+  const reminderBody = document.getElementById('reminderBody');
+  let storesData = {};
   try {
-    const res = await fetch("https://polo1364.github.io/order/menu.json");
-    const data = await res.json();
-    menuData = data[store];
-    if (!menuData) throw new Error("菜單載入失敗");
-    let html = "<table><tr><th>品項</th><th>價格</th><th>備註</th><th>選取</th></tr>";
-    for (let item in menuData) {
-      const price = menuData[item];
-      if (typeof price === 'object') {
-        for (let sub in price) {
-          html += `<tr><td>${item}（${sub}）</td><td>${price[sub]}</td>
-          <td><input type='text' placeholder='備註'></td>
-          <td><input type='radio' name='menuItem' value='${item}-${sub}' data-price='${price[sub]}'></td></tr>`;
-        }
-      } else {
-        html += `<tr><td>${item}</td><td>${price}</td>
-        <td><input type='text' placeholder='備註'></td>
-        <td><input type='radio' name='menuItem' value='${item}' data-price='${price}'></td></tr>`;
-      }
-    }
-    html += "</table>";
-    menuArea.innerHTML = html;
-    dateArea.classList.remove('hidden');
-  } catch { alert("無法載入菜單，請稍後再試！"); }
+    const res = await fetch("menu.json");
+    storesData = await res.json();
+  } catch {
+    alert("無法載入菜單資料！");
+    return;
+  }
+
+  const today = new Date();
+  const nextMonday = new Date(today);
+  nextMonday.setDate(today.getDate() + ((8 - today.getDay()) % 7 || 7));
+
+  reminderDays.forEach((day, i) => {
+    const date = new Date(nextMonday);
+    date.setDate(date.getDate() + i);
+    const dateStr = date.toISOString().split('T')[0];
+    const select = document.createElement('select');
+    select.setAttribute('data-date', dateStr);
+    select.innerHTML = `<option value="">請選擇</option>`;
+    Object.keys(storesData).forEach(store => {
+      select.innerHTML += `<option value="${store}">${store}</option>`;
+    });
+    const div = document.createElement('div');
+    div.innerHTML = `<strong>${dateStr}（${day}）</strong>: `;
+    div.appendChild(select);
+    reminderBody.appendChild(div);
+  });
+
+  renderReminderStores(); // 初始化顯示
+};
+
+// 儲存提醒資料
+document.getElementById('saveReminder').onclick = () => {
+  const selects = document.querySelectorAll('#reminderBody select');
+  const data = {};
+  selects.forEach(sel => {
+    const date = sel.getAttribute('data-date');
+    const store = sel.value;
+    if (store) data[date] = store;
+  });
+  localStorage.setItem('reminderData', JSON.stringify(data));
+  alert('已儲存提醒資料！');
+  document.getElementById('reminderModal').style.display = 'none';
+  renderReminderStores(); // 更新主頁
+};
+
+// 渲染主頁下週店家
+async function renderReminderStores() {
+  const container = document.getElementById('reminderStores');
+  container.innerHTML = '';
+  const data = JSON.parse(localStorage.getItem('reminderData')) || {};
+
+  let storesData = {};
+  try {
+    const res = await fetch("menu.json");
+    storesData = await res.json();
+  } catch {
+    alert("無法載入菜單資料！");
+    return;
+  }
+
+  Object.entries(data).forEach(([date, store]) => {
+    const div = document.createElement('div');
+    div.style.marginBottom = '0.5em';
+    div.innerHTML = `<strong>${date}</strong> - ${store} 
+      <button onclick='toggleMenu("${store}", this)'>顯示菜單</button>
+      <div id='menu-${store}' class='hidden'></div>`;
+    container.appendChild(div);
+  });
 }
 
-function submitOrder() {
-  const date = document.getElementById('orderDate').value;
-  const store = document.getElementById('storeSelect').value;
-  const sel = document.querySelector("input[name='menuItem']:checked");
-  const user = document.getElementById('userNameInput').value.trim();
-  const noteInput = sel ? sel.parentNode.previousElementSibling.firstElementChild.value.trim() : "";
-  if (!user || !date || !store || !sel) return alert("請填寫所有欄位");
-  const item = sel.value;
-  const price = sel.getAttribute('data-price');
-  const note = noteInput || "";
-  const key = db.ref('orders/' + date).push().key;
-  db.ref('orders/' + date + '/' + key).set({ user, item, price, note, store });
-}
-function togglePaid(date, id, checked) { db.ref(`orders/${date}/${id}`).update({ paid: checked }); }
-function deleteRecord(date, id) {
-  if (!confirm("確定要刪除？")) return;
-  db.ref(`orders/${date}/${id}`).remove().then(() => alert("已刪除！")).catch(err => alert(`刪除失敗：${err}`));
-}
-function printSection(section) {
-  const win = window.open('', '', 'width=800,height=600');
-  win.document.write('<html><head><title>列印統計表</title><style>table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 4px 8px; }</style></head><body>');
-  win.document.write(section.innerHTML); win.document.write('</body></html>'); win.document.close(); win.print();
+// 顯示或隱藏菜單
+async function toggleMenu(store, btn) {
+  const menuDiv = document.getElementById(`menu-${store}`);
+  if (!menuDiv.classList.contains('hidden')) {
+    menuDiv.classList.add('hidden');
+    btn.textContent = '顯示菜單';
+    return;
+  }
+
+  let storesData = {};
+  try {
+    const res = await fetch("menu.json");
+    storesData = await res.json();
+  } catch {
+    alert("無法載入菜單資料！");
+    return;
+  }
+
+  const menu = storesData[store];
+  let html = "<table><tr><th>品項</th><th>價格</th></tr>";
+  for (let item in menu) {
+    if (typeof menu[item] === 'object') {
+      for (let sub in menu[item]) {
+        html += `<tr><td>${item}（${sub}）</td><td>$${menu[item][sub]}</td></tr>`;
+      }
+    } else {
+      html += `<tr><td>${item}</td><td>$${menu[item]}</td></tr>`;
+    }
+  }
+  html += "</table>";
+
+  menuDiv.innerHTML = html;
+  menuDiv.classList.remove('hidden');
+  btn.textContent = '隱藏菜單';
 }
 </script>
 
