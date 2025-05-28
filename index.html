@@ -129,7 +129,6 @@ function submitOrder() {
   const noteInput = sel ? sel.parentNode.previousElementSibling.firstElementChild.value.trim() : "";
 
   if (!user || !date || !store || !sel) return alert("請填寫所有欄位");
-
   const item = sel.value;
   const price = sel.getAttribute('data-price');
   const note = noteInput || "";
@@ -181,7 +180,16 @@ db.ref('orders').on('value', snapshot => {
 
       for (let item in byStore[store]) {
         const users = byStore[store][item];
-        const itemTotalPrice = users.length * users[0].price;
+
+        // 判斷有無備註加價
+        let extra = 0;
+        users.forEach(u => {
+          const match = u.note.match(/加(\d+)元/);
+          if (match) extra = parseInt(match[1]);
+        });
+
+        const itemUnitPrice = parseInt(users[0].price) + extra;
+        const itemTotalPrice = itemUnitPrice * users.length;
         storeTotal += itemTotalPrice;
 
         const userNoteMap = {};
@@ -198,9 +206,13 @@ db.ref('orders').on('value', snapshot => {
           const showNote = note && note !== "（無備註）" ? `（${note}）` : "";
           const delBtn = `<button class='delete-btn' onclick='deleteRecord("${date}","${obj.ids[0]}")'>刪除</button>`;
           const paidCheckbox = `<input type='checkbox' ${obj.paid ? "checked" : ""} onclick='togglePaid("${date}","${obj.ids[0]}", this.checked)'>`;
-          const totalPrice = parseInt(obj.price) * obj.count;
-          if (obj.paid) storePaid += totalPrice;
-          else storeUnpaid += totalPrice;
+
+          const match = note.match(/加(\d+)元/);
+          const finalPrice = (parseInt(obj.price) + (match ? parseInt(match[1]) : 0)) * obj.count;
+
+          if (obj.paid) storePaid += finalPrice;
+          else storeUnpaid += finalPrice;
+
           return `<div style="border: 1px solid #ccc; background: rgba(255,255,255,0.6); border-radius: 4px; margin: 2px; padding: 2px 4px; display: inline-block;">
             ${name}${showNote}${obj.count > 1 ? `（共${obj.count}份）` : ""} ${paidCheckbox} ${delBtn}
           </div>`;
@@ -210,7 +222,7 @@ db.ref('orders').on('value', snapshot => {
           <td>${item}</td>
           <td>${userCells}</td>
           <td>${users.length}</td>
-          <td>$${users[0].price}</td>
+          <td>$${itemUnitPrice}</td>
           <td>$${itemTotalPrice}</td>
         </tr>`;
       }
