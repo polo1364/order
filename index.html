@@ -50,14 +50,20 @@
     background: #fff;
     border-radius: 4px;
   }
-  /* 強制隱藏所有互動按鈕 & 互動欄位（列印模式） */
+  /* 列印模式，隱藏所有互動元素 */
   @media print {
-    html, body { margin: 0; padding: 0; background: #fff !important; }
+    html, body {
+      margin: 0; 
+      padding: 0; 
+      background: #fff !important;
+    }
     button, input[type="text"], input[type="checkbox"], input[type="radio"], select {
       display: none !important;
+      visibility: hidden !important;
     }
-    .delete-btn, .print-btn, .toggle-btn {
+    .delete-btn, .print-btn, .toggle-btn, .reminder-select, .reminder-edit-btn {
       display: none !important;
+      visibility: hidden !important;
     }
     .section { page-break-after: always; }
   }
