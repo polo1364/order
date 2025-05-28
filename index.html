@@ -26,56 +26,18 @@ body::before {
   pointer-events: none;
   z-index: 0;
 }
-#main, #reminder, #orders, h2, h3, table, th, td {
-  position: relative;
-  z-index: 1;
-}
-h2 {
-  color: #b30000;
-  margin-bottom: 0.5em;
-}
-table, th, td {
-  border: 1px solid #ccc;
-  border-collapse: collapse;
-  padding: 4px 8px;
-  background: #fff;
-}
+#main, #reminder, #orders, h2, h3, table, th, td { position: relative; z-index: 1; }
+h2 { color: #b30000; margin-bottom: 0.5em; }
+h3 { margin-top: 1em; }
+table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 4px 8px; background: #fff; }
 th { background: #eee; }
 .hidden { display: none; }
-.section {
-  margin-bottom: 1em;
-  border: 1px solid #ccc;
-  padding: 0.5em;
-  background: #fff;
-  border-radius: 4px;
-}
+.section { margin-bottom: 1em; border: 1px solid #ccc; padding: 0.5em; background: #fff; border-radius: 4px; }
+.day-label { display: block; margin-bottom: 0.3em; }
 @media print {
   html, body { margin: 0; padding: 0; background: #fff; }
   button, input, select { display: none !important; }
   .section { page-break-after: always; }
-}
-#reminder {
-  margin-bottom: 1em;
-  border: 1px solid #ccc;
-  padding: 0.5em;
-  background: #fff;
-  border-radius: 4px;
-}
-.reminder-item {
-  display: flex;
-  align-items: center;
-  margin-bottom: 0.5em;
-}
-.reminder-item label {
-  width: 80px;
-}
-.reminder-item select {
-  flex: 1;
-}
-.reminder-item .date {
-  margin-left: 0.5em;
-  font-size: 0.9em;
-  color: #555;
 }
 </style>
 </head>
@@ -83,10 +45,16 @@ th { background: #eee; }
 
 <h2>便當點餐系統</h2>
 
-<div id="reminder">
+<div id="reminderCurrent">
+  <h3>本週提醒店家（自動清除）</h3>
+  <div id="currentReminderSelects"></div>
+  <button onclick="saveReminder('current')">儲存提醒設定</button>
+</div>
+
+<div id="reminderNext">
   <h3>下週提醒店家（可編輯）</h3>
-  <div id="reminderSelects"></div>
-  <button onclick="saveReminder()">儲存提醒設定</button>
+  <div id="nextReminderSelects"></div>
+  <button onclick="saveReminder('next')">儲存提醒設定</button>
 </div>
 
 <div id="orders"></div>
@@ -95,9 +63,7 @@ th { background: #eee; }
 const firebaseConfig = { databaseURL: "https://bento-5bb36-default-rtdb.firebaseio.com/" };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-
 let storeList = [];
-let reminderData = {};
 
 async function loadStores() {
   const res = await fetch("menu.json");
@@ -105,45 +71,56 @@ async function loadStores() {
   storeList = Object.keys(data);
 }
 
-async function loadReminder() {
-  const snap = await db.ref('reminder').once('value');
-  reminderData = snap.val() || { 一: "", 二: "", 三: "", 四: "", 五: "" };
-  renderReminder();
-}
-
-async function renderReminder() {
+function renderReminder(type, data) {
   const days = ["一", "二", "三", "四", "五"];
-  const today = new Date();
-  const nextMonday = new Date(today);
-  nextMonday.setDate(today.getDate() + (8 - today.getDay()));
+  const container = document.getElementById(type === 'current' ? 'currentReminderSelects' : 'nextReminderSelects');
   let html = "";
-  days.forEach((d, idx) => {
-    const date = new Date(nextMonday);
-    date.setDate(date.getDate() + idx);
-    const yyyyMMdd = date.toISOString().split('T')[0];
-    html += `<div class="reminder-item">
-      <label>星期${d}：</label>
-      <select id="day_${d}">
+  days.forEach(d => {
+    html += `<label class="day-label">星期${d}：
+      <select id="${type}_day_${d}">
         <option value="">請選擇</option>
-        ${storeList.map(s => `<option value="${s}" ${reminderData[d] === s ? "selected" : ""}>${s}</option>`).join("")}
+        ${storeList.map(s => `<option value="${s}" ${data[d] === s ? "selected" : ""}>${s}</option>`).join("")}
       </select>
-      <span class="date">（${yyyyMMdd}）</span>
-    </div>`;
+    </label>`;
   });
-  document.getElementById('reminderSelects').innerHTML = html;
+  container.innerHTML = html;
 }
 
-function saveReminder() {
+async function loadReminders() {
+  const snapCurrent = await db.ref('reminderCurrent').once('value');
+  const currentData = snapCurrent.val() || { 一: "", 二: "", 三: "", 四: "", 五: "" };
+  renderReminder('current', currentData);
+
+  const snapNext = await db.ref('reminderNext').once('value');
+  const nextData = snapNext.val() || { 一: "", 二: "", 三: "", 四: "", 五: "" };
+  renderReminder('next', nextData);
+}
+
+function saveReminder(type) {
   const days = ["一", "二", "三", "四", "五"];
   const newReminder = {};
   days.forEach(d => {
-    const val = document.getElementById(`day_${d}`).value;
+    const val = document.getElementById(`${type}_day_${d}`).value;
     newReminder[d] = val;
   });
-  db.ref('reminder').set(newReminder);
-  reminderData = newReminder;
-  alert("已儲存提醒設定！");
+  db.ref(type === 'current' ? 'reminderCurrent' : 'reminderNext').set(newReminder);
+  alert(`已儲存${type === 'current' ? '本週' : '下週'}提醒設定！`);
   renderOrders();
+}
+
+function getNextMonday(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? 1 : 8 - day;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
+function getMondayOfCurrentWeek(date) {
+  const d = new Date(date);
+  const diff = d.getDate() - d.getDay() + (d.getDay() === 0 ? -6 : 1);
+  d.setDate(diff);
+  return d;
 }
 
 async function renderOrders() {
@@ -152,16 +129,20 @@ async function renderOrders() {
   const menuData = await res.json();
 
   const today = new Date();
-  const nextMonday = new Date(today);
-  nextMonday.setDate(today.getDate() + (8 - today.getDay()));
+  const mondayThisWeek = getMondayOfCurrentWeek(today);
+  const mondayNextWeek = getNextMonday(today);
 
   const days = ["一", "二", "三", "四", "五"];
+
+  const reminderSnap = await db.ref('reminderCurrent').once('value');
+  const reminder = reminderSnap.val() || {};
+
   for (let idx = 0; idx < days.length; idx++) {
     const d = days[idx];
-    const date = new Date(nextMonday);
+    const date = new Date(mondayThisWeek);
     date.setDate(date.getDate() + idx);
     const yyyyMMdd = date.toISOString().split('T')[0];
-    const store = reminderData[d] || "未設定";
+    const store = reminder[d] || "未設定";
     if (store === "未設定") continue;
 
     const section = document.createElement('div');
@@ -172,7 +153,7 @@ async function renderOrders() {
       <div id="stats_${yyyyMMdd}"></div>`;
     document.getElementById('orders').appendChild(section);
 
-    const menuDiv = document.getElementById(`menu_${yyyyMMdd}`);
+    const menuDiv = section.querySelector(`#menu_${yyyyMMdd}`);
     let html = "<table><tr><th>品項</th><th>價格</th><th>備註</th><th>選取</th></tr>";
     const menu = menuData[store];
     for (let item in menu) {
@@ -201,6 +182,7 @@ async function renderOrders() {
 
       let table = "<table><tr><th>品項</th><th>人員</th><th>數量</th><th>單價</th><th>小計</th></tr>";
       let total = 0, paidTotal = 0, unpaidTotal = 0;
+
       const byItem = {};
       for (let id in data) {
         const { user, item, price, note = "", paid = false } = data[id];
@@ -209,6 +191,7 @@ async function renderOrders() {
         if (!byItem[displayItem]) byItem[displayItem] = [];
         byItem[displayItem].push({ user, id, price, note, paid });
       }
+
       for (let item in byItem) {
         const users = byItem[item];
         const unitPrice = parseInt(users[0].price);
@@ -238,10 +221,7 @@ async function renderOrders() {
   }
 }
 
-function toggleMenu(date) {
-  const div = document.getElementById(`menu_${date}`);
-  div.style.display = div.style.display === "none" ? "block" : "none";
-}
+function toggleMenu(date) { const div = document.getElementById(`menu_${date}`); div.style.display = div.style.display === "none" ? "block" : "none"; }
 function submitOrder(date, store) {
   const sel = document.querySelector(`input[name='menu_${date}']:checked`);
   const user = document.getElementById(`user_${date}`).value.trim();
@@ -264,14 +244,11 @@ function printSection(id) {
   win.document.write('</head><body>');
   win.document.write(statsDiv.innerHTML);
   win.document.write('</body></html>');
-  win.document.close();
-  win.print();
+  win.document.close(); win.print();
 }
-
-// 初始化
 (async function() {
   await loadStores();
-  await loadReminder();
+  await loadReminders();
   await renderOrders();
 })();
 </script>
