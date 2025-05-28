@@ -243,17 +243,39 @@ function submitOrder(date, store) {
 function togglePaid(date, id, checked) { db.ref(`orders/${date}/${id}`).update({ paid: checked }); }
 function deleteOrder(date, id) { if (confirm("確定刪除？")) db.ref(`orders/${date}/${id}`).remove(); }
 function printSection(id) {
-  const statsDiv = document.getElementById(id);
-  const cleanHtml = statsDiv.querySelector("table").outerHTML;
-  const sectionHeader = statsDiv.parentElement.querySelector("h4").outerHTML;
+  const section = document.getElementById(id).parentElement; // 取得外層 section，包含日期店家
+
+  // ✅ 找出所有互動按鈕與欄位，先記錄起來
+  const interactiveElements = section.querySelectorAll('button, input, select');
+
+  // ✅ 隱藏這些元素
+  interactiveElements.forEach(el => {
+    el.style.display = 'none';
+  });
+
+  // ✅ 產生新的列印視窗，內容是乾淨的
   const win = window.open('', '', 'width=800,height=600');
   win.document.write('<html><head><title>列印統計表</title>');
   win.document.write('<style>body { font-family: sans-serif; } h4 { margin-bottom: 0.5em; } table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 4px 8px; } th { background: #eee; }</style>');
   win.document.write('</head><body>');
-  win.document.write(sectionHeader + cleanHtml);
+  win.document.write(section.innerHTML);
   win.document.write('</body></html>');
   win.document.close();
-  win.print();
+
+  // ✅ 印表機視窗開啟後，觸發列印
+  win.onload = () => {
+    win.print();
+
+    // ✅ 關閉列印視窗
+    win.onafterprint = () => {
+      win.close();
+
+      // ✅ 列印完畢，恢復原本頁面上的按鈕
+      interactiveElements.forEach(el => {
+        el.style.display = '';
+      });
+    };
+  };
 }
 
 (async function() {
