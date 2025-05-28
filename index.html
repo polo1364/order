@@ -109,7 +109,7 @@ function saveNextWeekReminder() {
 function getNextWeekMonday() {
   const today = new Date();
   const nextMonday = new Date(today);
-  const day = today.getDay() || 7; // 週日視為7
+  const day = today.getDay() || 7; // 週日變7
   nextMonday.setDate(today.getDate() + (8 - day));
   nextMonday.setHours(0,0,0,0);
   return nextMonday;
@@ -178,8 +178,9 @@ async function renderOrders() {
         const itemCount = users.length;
         let itemTotal = 0;
 
+        const sortedUsers = [...users].sort((a, b) => (b.note ? 1 : 0) - (a.note ? 1 : 0));
         const noteMap = {};
-        users.forEach(u => {
+        sortedUsers.forEach(u => {
           const key = u.note || "（無備註）";
           if (!noteMap[key]) noteMap[key] = {};
           if (!noteMap[key][u.user]) noteMap[key][u.user] = { ...u, count: 0 };
@@ -190,7 +191,8 @@ async function renderOrders() {
         });
         total += itemTotal;
 
-        const userCells = Object.keys(noteMap).sort(a => a === "（無備註）" ? 1 : -1).map(note => {
+        const sortedNotes = Object.keys(noteMap).sort(a => a === "（無備註）" ? 1 : -1);
+        const userCells = sortedNotes.map(note => {
           const userList = Object.values(noteMap[note]).map(u => {
             const countLabel = u.count > 1 ? `（共${u.count}份）` : "";
             const paidCk = `<input type='checkbox' ${u.paid ? "checked" : ""} onclick='togglePaid("${yyyyMMdd}","${u.id}", this.checked)'>`;
