@@ -6,152 +6,187 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <style>
-body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 1em; background: url('https://raw.githubusercontent.com/polo1364/order/refs/heads/main/7053209E-5BF7-4E75-A62D-7C2CCD77B04A.png') repeat; background-size: 200px 200px; position: relative; }
-body::before { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.6); pointer-events: none; z-index: 0; }
-h2 { color: #b30000; margin-bottom: 0.5em; }
-table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 4px 8px; background: #fff; }
-th { background: #eee; }
-.hidden { display: none; }
-.menu-toggle { margin-left: 0.5em; }
-.user-box { display: inline-block; border: 1px solid #ccc; border-radius: 4px; background: rgba(255,255,255,0.6); margin: 2px; padding: 2px 4px; }
+  body {
+    font-family: sans-serif;
+    max-width: 600px;
+    margin: auto;
+    padding: 1em;
+    background: linear-gradient(to bottom, #fdfdfd, #f0f0f0); /* 柔和的灰白漸層 */
+    position: relative;
+  }
+  h2 { color: #b30000; margin-bottom: 0.5em; }
+  table, th, td {
+    border: 1px solid #ccc; border-collapse: collapse;
+    padding: 4px 8px; background: #fff;
+  }
+  th { background: #eee; }
+  .hidden { display: none; }
+  #main, #stats, #menuArea, #dateArea, #reminderArea, h2, h3 {
+    position: relative;
+    z-index: 1;
+  }
+  @media print {
+    html, body { margin: 0; padding: 0; background: #fff; }
+    #reminderArea, #main, #storeSelect, #orderDate, #userNameInput, button:not(.print-btn) { display: none !important; }
+    #stats { margin: 0 auto; width: 100%; font-size: 12pt; }
+    table { width: 100%; table-layout: fixed; }
+    th, td { padding: 6px; text-align: left; }
+  }
 </style>
 </head>
 <body>
 
 <h2>便當點餐系統</h2>
 
-<div id="reminder">
-  <h3>下週店家提醒（可編輯）</h3>
-  <div>
-    <label>星期一</label>
-    <select class="reminder-select" data-day="1"></select>
-  </div>
-  <div>
-    <label>星期二</label>
-    <select class="reminder-select" data-day="2"></select>
-  </div>
-  <div>
-    <label>星期三</label>
-    <select class="reminder-select" data-day="3"></select>
-  </div>
-  <div>
-    <label>星期四</label>
-    <select class="reminder-select" data-day="4"></select>
-  </div>
-  <div>
-    <label>星期五</label>
-    <select class="reminder-select" data-day="5"></select>
+<!-- 提醒視窗 -->
+<div id="reminderArea"></div>
+
+<!-- 主頁 -->
+<div id="main" class="hidden">
+  <div id="storeList"></div>
+  <div id="menuArea"></div>
+  <div id="dateArea" class="hidden">
+    <input type="date" id="orderDate" />
+    <input type="text" id="userNameInput" placeholder="輸入姓名/工號" />
+    <button onclick="submitOrder()">送出</button>
   </div>
 </div>
 
-<h3>店家菜單</h3>
-<div id="menuArea"></div>
-
-<h3>統計表</h3>
+<h3>人數統計</h3>
 <div id="stats"></div>
 
 <script>
+// Firebase 初始化
 const firebaseConfig = { databaseURL: "https://bento-5bb36-default-rtdb.firebaseio.com/" };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 let menuData = {};
+let reminderData = {}; // 提醒視窗資料
 
-// 1️⃣ 載入菜單選項
-async function loadStoreList() {
-  const res = await fetch("https://polo1364.github.io/order/menu.json");
-  const data = await res.json();
-  const selects = document.querySelectorAll('.reminder-select');
-  selects.forEach(select => {
-    select.innerHTML = `<option value="">--選擇--</option>`;
-    for (let store in data) {
-      select.innerHTML += `<option value="${store}">${store}</option>`;
-    }
-  });
-  menuData = data;
-
-  // 載入 localStorage 紀錄
-  const saved = JSON.parse(localStorage.getItem('reminderStores') || '{}');
-  selects.forEach(s => {
-    const day = s.dataset.day;
-    if (saved[day]) s.value = saved[day];
-  });
-}
-loadStoreList();
-
-// 2️⃣ 存提醒選單（自動存到 localStorage 並顯示菜單）
-document.querySelectorAll('.reminder-select').forEach(select => {
-  select.addEventListener('change', () => {
-    const saved = JSON.parse(localStorage.getItem('reminderStores') || '{}');
-    saved[select.dataset.day] = select.value;
-    localStorage.setItem('reminderStores', JSON.stringify(saved));
-    renderMenu();
-  });
-});
-
-// 3️⃣ 顯示提醒菜單區塊
-function renderMenu() {
-  const menuArea = document.getElementById('menuArea');
-  menuArea.innerHTML = '';
-
-  const saved = JSON.parse(localStorage.getItem('reminderStores') || '{}');
-  Object.entries(saved).forEach(([day, store]) => {
-    if (!store) return;
-    const div = document.createElement('div');
-    div.innerHTML = `<b>星期${'一二三四五'[day-1]}：${store}</b>
-      <button class='menu-toggle'>顯示/隱藏菜單</button>
-      <div class='menu hidden'></div>`;
-    div.querySelector('button').onclick = () => {
-      const menuDiv = div.querySelector('.menu');
-      if (menuDiv.classList.contains('hidden')) {
-        menuDiv.innerHTML = generateMenuHTML(store);
-        menuDiv.classList.remove('hidden');
-      } else {
-        menuDiv.classList.add('hidden');
-      }
-    };
-    menuArea.appendChild(div);
-  });
-}
-
-// 4️⃣ 生成菜單 HTML
-function generateMenuHTML(store) {
-  let html = "<table><tr><th>品項</th><th>價格</th><th>備註</th><th>姓名</th><th>選取</th></tr>";
-  const items = menuData[store];
-  for (let item in items) {
-    const price = items[item];
-    if (typeof price === 'object') {
-      for (let sub in price) {
-        html += `<tr><td>${item}（${sub}）</td><td>${price[sub]}</td>
-        <td><input type='text' placeholder='備註'></td>
-        <td><input type='text' placeholder='姓名/工號'></td>
-        <td><button onclick='submitOrder("${store}", "${item}-${sub}", ${price[sub]}, this)'>送出</button></td></tr>`;
-      }
-    } else {
-      html += `<tr><td>${item}</td><td>${price}</td>
-      <td><input type='text' placeholder='備註'></td>
-      <td><input type='text' placeholder='姓名/工號'></td>
-      <td><button onclick='submitOrder("${store}", "${item}", ${price}, this)'>送出</button></td></tr>`;
-    }
+// 讀取提醒視窗設定
+async function loadReminder() {
+  try {
+    const res = await fetch("https://polo1364.github.io/order/reminder.json");
+    reminderData = await res.json();
+    showReminder();
+  } catch {
+    alert("無法載入提醒視窗設定！");
   }
-  html += "</table>";
-  return html;
 }
 
-// 5️⃣ 送出訂單
-function submitOrder(store, item, price, btn) {
-  const tr = btn.closest('tr');
-  const note = tr.querySelector('input[placeholder=備註]').value.trim();
-  const user = tr.querySelector('input[placeholder=姓名/工號]').value.trim();
-  const date = new Date().toISOString().split('T')[0];
-  if (!user) return alert("請填姓名/工號！");
+// 顯示提醒視窗
+function showReminder() {
+  const reminderArea = document.getElementById('reminderArea');
+  let html = `<h4>下週提醒店家（可編輯）</h4><table>`;
+  const days = ['一', '二', '三', '四', '五'];
+  days.forEach(day => {
+    const store = reminderData[day] || "";
+    html += `<tr><td>星期${day}</td>
+      <td><select data-day="${day}">
+        <option value="">請選擇</option>
+      </select></td></tr>`;
+  });
+  html += `</table><button onclick="saveReminder()">儲存提醒設定</button>`;
+  reminderArea.innerHTML = html;
 
+  // 載入可選店家到下拉選單
+  fetch("https://polo1364.github.io/order/menu.json")
+    .then(res => res.json())
+    .then(data => {
+      for (let day of days) {
+        const select = reminderArea.querySelector(`select[data-day='${day}']`);
+        for (let store in data) {
+          const opt = document.createElement('option');
+          opt.value = store;
+          opt.textContent = store;
+          if (store === reminderData[day]) opt.selected = true;
+          select.appendChild(opt);
+        }
+      }
+    });
+}
+
+// 儲存提醒設定
+function saveReminder() {
+  const selects = document.querySelectorAll('#reminderArea select');
+  selects.forEach(sel => {
+    const day = sel.getAttribute('data-day');
+    reminderData[day] = sel.value;
+  });
+  localStorage.setItem('reminderData', JSON.stringify(reminderData));
+  alert("提醒設定已儲存！");
+  showStores();
+}
+
+// 顯示主頁店家
+function showStores() {
+  const main = document.getElementById('main');
+  const storeList = document.getElementById('storeList');
+  storeList.innerHTML = "";
+  const days = ['一', '二', '三', '四', '五'];
+  days.forEach(day => {
+    const store = reminderData[day];
+    if (store) {
+      const div = document.createElement('div');
+      div.innerHTML = `<strong>星期${day}：</strong>${store} 
+        <button onclick="toggleMenu('${store}')">顯示/隱藏菜單</button>`;
+      storeList.appendChild(div);
+    }
+  });
+  main.classList.remove('hidden');
+}
+
+// 載入菜單
+async function toggleMenu(store) {
+  const menuArea = document.getElementById('menuArea');
+  if (menuArea.dataset.store === store) {
+    menuArea.innerHTML = "";
+    menuArea.dataset.store = "";
+    document.getElementById('dateArea').classList.add('hidden');
+  } else {
+    const res = await fetch("https://polo1364.github.io/order/menu.json");
+    const data = await res.json();
+    menuData = data[store];
+    let html = "<table><tr><th>品項</th><th>價格</th><th>備註</th><th>選取</th></tr>";
+    for (let item in menuData) {
+      const price = menuData[item];
+      if (typeof price === 'object') {
+        for (let sub in price) {
+          html += `<tr><td>${item}（${sub}）</td><td>${price[sub]}</td>
+          <td><input type='text' placeholder='備註'></td>
+          <td><input type='radio' name='menuItem' value='${item}-${sub}' data-price='${price[sub]}'></td></tr>`;
+        }
+      } else {
+        html += `<tr><td>${item}</td><td>${price}</td>
+        <td><input type='text' placeholder='備註'></td>
+        <td><input type='radio' name='menuItem' value='${item}' data-price='${price}'></td></tr>`;
+      }
+    }
+    html += "</table>";
+    menuArea.innerHTML = html;
+    menuArea.dataset.store = store;
+    document.getElementById('dateArea').classList.remove('hidden');
+  }
+}
+
+// 送出訂單
+function submitOrder() {
+  const date = document.getElementById('orderDate').value;
+  const store = document.getElementById('menuArea').dataset.store;
+  const sel = document.querySelector("input[name='menuItem']:checked");
+  const user = document.getElementById('userNameInput').value.trim();
+  const noteInput = sel ? sel.parentNode.previousElementSibling.firstElementChild.value.trim() : "";
+
+  if (!user || !date || !store || !sel) return alert("請填寫所有欄位");
+  const item = sel.value;
+  const price = sel.getAttribute('data-price');
+  const note = noteInput || "";
   const key = db.ref('orders/' + date).push().key;
   db.ref('orders/' + date + '/' + key).set({ user, item, price, note, store });
-  alert("已送出！");
 }
 
-// 6️⃣ 監聽並顯示統計表
+// 統計表（沿用你之前的統計表邏輯）
 db.ref('orders').on('value', snapshot => {
   const stats = document.getElementById('stats');
   stats.innerHTML = '';
@@ -160,57 +195,97 @@ db.ref('orders').on('value', snapshot => {
 
   const today = new Date();
   for (let date in data) {
+    const dateObj = new Date(date);
+    const diffTime = today - dateObj;
+    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+    if (diffDays > 3) { db.ref(`orders/${date}`).remove(); continue; }
+
     const dayDiv = document.createElement('div');
-    const weekDay = ['日','一','二','三','四','五','六'][new Date(date).getDay()];
+    dayDiv.style.border = '1px solid #ccc';
+    dayDiv.style.marginBottom = '1em';
+    dayDiv.style.padding = '0.5em';
+    const weekDay = ['日', '一', '二', '三', '四', '五', '六'][new Date(date).getDay()];
     dayDiv.innerHTML = `<h4>${date}（星期${weekDay}）</h4>`;
 
     const byStore = {};
     for (let id in data[date]) {
-      const { user, item, price, note, store, paid=false } = data[date][id];
+      const { user: u, item, price, note = "", store, paid = false } = data[date][id];
+      const [itemName, size] = item.split("-");
+      const displayItem = size ? `${itemName}（${size}）` : itemName;
+
       if (!byStore[store]) byStore[store] = {};
-      if (!byStore[store][item]) byStore[store][item] = [];
-      byStore[store][item].push({ user, id, price, note, paid });
+      if (!byStore[store][displayItem]) byStore[store][displayItem] = [];
+      byStore[store][displayItem].push({ user: u, id, price, note, paid });
     }
 
     for (let store in byStore) {
-      const div = document.createElement('div');
-      div.innerHTML = `<h5>${store}</h5>`;
+      const storeDiv = document.createElement('div');
+      storeDiv.innerHTML = `<h5>${store}</h5>`;
       const table = document.createElement('table');
       table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th><th>單價</th><th>小計</th></tr>";
 
-      let total=0, paidTotal=0, unpaidTotal=0;
+      let storeTotal = 0, storePaid = 0, storeUnpaid = 0;
+
       for (let item in byStore[store]) {
         const users = byStore[store][item];
-        const extra = users.reduce((acc, u) => {
-          const m = u.note.match(/加(\d+)元/); return m ? parseInt(m[1]) : acc;
-        }, 0);
-        const unitPrice = parseInt(users[0].price) + extra;
-        const itemTotal = unitPrice * users.length;
-        total += itemTotal;
+        const extra = users.some(u => /加(\d+)元/.test(u.note)) ? parseInt(users[0].note.match(/加(\d+)元/)[1]) : 0;
+        const itemUnitPrice = parseInt(users[0].price) + extra;
+        const itemTotalPrice = itemUnitPrice * users.length;
+        storeTotal += itemTotalPrice;
 
-        const cells = users.map(u => {
-          const noteShow = u.note ? `（${u.note}）` : '';
-          const paidBox = `<input type='checkbox' ${u.paid?"checked":""} onclick='togglePaid("${date}","${u.id}", this.checked)'>`;
-          const delBtn = `<button onclick='deleteOrder("${date}","${u.id}")'>刪除</button>`;
-          if (u.paid) paidTotal += unitPrice;
-          else unpaidTotal += unitPrice;
-          return `<div class='user-box'>${u.user}${noteShow} ${paidBox} ${delBtn}</div>`;
+        const userCells = users.map(u => {
+          const delBtn = `<button onclick='deleteRecord("${date}","${u.id}")'>刪除</button>`;
+          const paidCheckbox = `<input type='checkbox' ${u.paid ? "checked" : ""} onclick='togglePaid("${date}","${u.id}", this.checked)'>`;
+          return `<div style="border: 1px solid #ccc; background: #eee; margin: 2px; padding: 2px 4px; display: inline-block;">
+            ${u.user}${u.note ? `（${u.note}）` : ""} ${paidCheckbox} ${delBtn}
+          </div>`;
         }).join("");
-        table.innerHTML += `<tr><td>${item}</td><td>${cells}</td><td>${users.length}</td><td>$${unitPrice}</td><td>$${itemTotal}</td></tr>`;
+
+        table.innerHTML += `<tr>
+          <td>${item}</td><td>${userCells}</td><td>${users.length}</td>
+          <td>$${itemUnitPrice}</td><td>$${itemTotalPrice}</td>
+        </tr>`;
       }
-      table.innerHTML += `<tr><td colspan="5">總金額：$${total} ｜ 已付款：$${paidTotal} ｜ 未付款：$${unpaidTotal}</td></tr>`;
-      div.appendChild(table);
-      dayDiv.appendChild(div);
+
+      table.innerHTML += `<tr><td colspan="5">總金額：$${storeTotal} ｜ 已付款：$${storePaid} ｜ 未付款：$${storeUnpaid}</td></tr>`;
+      storeDiv.appendChild(table);
+      dayDiv.appendChild(storeDiv);
     }
+
+    const printBtn = document.createElement('button');
+    printBtn.innerText = `列印 ${date} 統計表`;
+    printBtn.onclick = () => printSection(dayDiv);
+    dayDiv.appendChild(printBtn);
+
     stats.appendChild(dayDiv);
   }
 });
 
+// 付款&刪除
 function togglePaid(date, id, checked) { db.ref(`orders/${date}/${id}`).update({ paid: checked }); }
-function deleteOrder(date, id) {
+function deleteRecord(date, id) {
   if (!confirm("確定要刪除？")) return;
-  db.ref(`orders/${date}/${id}`).remove().then(()=>alert("已刪除！")).catch(e=>alert(e));
+  db.ref(`orders/${date}/${id}`).remove().then(() => alert("已刪除！"));
 }
+
+// 列印
+function printSection(section) {
+  const win = window.open('', '', 'width=800,height=600');
+  win.document.write('<html><head><title>列印統計表</title>');
+  win.document.write('<style>table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 4px 8px; }</style>');
+  win.document.write('</head><body>');
+  win.document.write(section.innerHTML);
+  win.document.write('</body></html>');
+  win.document.close(); win.print();
+}
+
+// 初始化
+window.onload = () => {
+  loadReminder();
+  const saved = localStorage.getItem('reminderData');
+  if (saved) reminderData = JSON.parse(saved);
+  showReminder();
+};
 </script>
 
 </body>
