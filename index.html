@@ -7,33 +7,28 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <style>
   body {
-  font-family: sans-serif;
-  color: #000; /* 純黑文字，清晰 */
-  max-width: 800px;
-  margin: auto;
-  padding: 1em;
-  background: url('https://raw.githubusercontent.com/polo1364/order/refs/heads/main/FB5BBC50-D21A-4F57-AF32-ABE798E3ABA1.png') repeat;
-  background-size: 200px 200px;
-  position: relative;
-}
-
-/* 不用再額外疊白層，直接讓「主要內容區」加背景色 */
-#main, #reminder, #orders, .section {
-  background: rgba(255, 255, 255, 0.8); /* 白色底，透明度 0.8 */
-  border-radius: 4px; /* 可加圓角美化 */
-  padding: 1em; /* 加點內距，避免字貼邊 */
-}
-
-h2 {
-  color: #b30000;
-  margin-bottom: 0.5em;
-}
-table, th, td {
-  border: 1px solid #ccc;
-  border-collapse: collapse;
-  padding: 4px 8px;
-  background: rgba(255, 255, 255, 0.9); /* 表格也加白底 */
-}
+    font-family: sans-serif;
+    color: #000; /* 純黑文字 */
+    max-width: 800px;
+    margin: auto;
+    padding: 1em;
+    background: url('https://raw.githubusercontent.com/polo1364/order/refs/heads/main/FB5BBC50-D21A-4F57-AF32-ABE798E3ABA1.png') repeat;
+    background-size: 200px 200px;
+  }
+  #reminder, #orders, .section {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 4px;
+    padding: 1em;
+    margin-bottom: 1em;
+  }
+  h2 { color: #b30000; margin-bottom: 0.5em; }
+  table, th, td {
+    border: 1px solid #ccc;
+    border-collapse: collapse;
+    padding: 4px 8px;
+    background: rgba(255, 255, 255, 0.95);
+  }
+  th { background: #eee; }
   .action-btn { display: inline-block; }
   @media print {
     html, body { background: #fff !important; }
@@ -49,6 +44,14 @@ table, th, td {
 
 <h2>便當點餐系統</h2>
 
+<div id="reminder">
+  <h3>本週提醒視窗</h3>
+  <div id="thisWeekSelects"></div>
+  <h3>下週提醒視窗（可編輯）</h3>
+  <div id="nextWeekSelects"></div>
+  <button class="action-btn" onclick="saveNextWeekReminder()">儲存提醒設定</button>
+</div>
+
 <div id="orders"></div>
 
 <script>
@@ -56,22 +59,67 @@ const firebaseConfig = { databaseURL: "https://bento-5bb36-default-rtdb.firebase
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+let storeList = [];
+let thisWeekReminder = {};
+let nextWeekReminder = {};
+
+async function loadStores() {
+  const res = await fetch("menu.json");
+  const data = await res.json();
+  storeList = Object.keys(data);
+}
+
+async function loadReminder() {
+  const snapThis = await db.ref('reminder/thisWeek').once('value');
+  thisWeekReminder = snapThis.val() || { 一: "", 二: "", 三: "", 四: "", 五: "" };
+  const snapNext = await db.ref('reminder/nextWeek').once('value');
+  nextWeekReminder = snapNext.val() || { 一: "", 二: "", 三: "", 四: "", 五: "" };
+  renderReminder();
+}
+
+function renderReminder() {
+  const days = ["一", "二", "三", "四", "五"];
+  let htmlThis = "", htmlNext = "";
+  days.forEach(d => {
+    htmlThis += `<div>星期${d}：<select disabled><option>${thisWeekReminder[d] || "未設定"}</option></select></div>`;
+    htmlNext += `<div>星期${d}：
+      <select id="dayNext_${d}">
+        <option value="">請選擇</option>
+        ${storeList.map(s => `<option value="${s}" ${nextWeekReminder[d] === s ? "selected" : ""}>${s}</option>`).join("")}
+      </select></div>`;
+  });
+  document.getElementById('thisWeekSelects').innerHTML = htmlThis;
+  document.getElementById('nextWeekSelects').innerHTML = htmlNext;
+}
+
+function saveNextWeekReminder() {
+  const days = ["一", "二", "三", "四", "五"];
+  const newReminder = {};
+  days.forEach(d => {
+    const val = document.getElementById(`dayNext_${d}`).value;
+    newReminder[d] = val;
+  });
+  db.ref('reminder/nextWeek').set(newReminder);
+  nextWeekReminder = newReminder;
+  alert("已儲存下週提醒設定！");
+  renderOrders();
+}
+
 async function renderOrders() {
   document.getElementById('orders').innerHTML = '';
   const res = await fetch("menu.json");
   const menuData = await res.json();
-
   const today = new Date();
   const nextMonday = new Date(today);
   nextMonday.setDate(today.getDate() + (8 - today.getDay()));
   const days = ["一", "二", "三", "四", "五"];
-
   for (let idx = 0; idx < days.length; idx++) {
     const d = days[idx];
     const date = new Date(nextMonday);
     date.setDate(date.getDate() + idx);
     const yyyyMMdd = date.toISOString().split('T')[0];
-    const store = "新香味（林園）"; // 假設範例，請自行修改
+    const store = nextWeekReminder[d] || "未設定";
+    if (store === "未設定") continue;
 
     const section = document.createElement('div');
     section.className = 'section';
@@ -96,14 +144,12 @@ async function renderOrders() {
         if (!byItem[displayItem]) byItem[displayItem] = [];
         byItem[displayItem].push({ user, id, price: parseInt(price) || 0, note, paid });
       }
-
       for (let item in byItem) {
         const users = byItem[item];
         const unitPrice = users[0].price;
         const itemCount = users.length;
         let itemTotal = 0;
 
-        // 將人員備註排序、統計加價
         const sortedUsers = [...users].sort((a, b) => (b.note ? 1 : 0) - (a.note ? 1 : 0));
         const noteMap = {};
         sortedUsers.forEach(u => {
@@ -113,14 +159,12 @@ async function renderOrders() {
           itemTotal += finalPrice;
           if (u.paid) paidTotal += finalPrice;
           else unpaidTotal += finalPrice;
-
           const key = u.note || "（無備註）";
           if (!noteMap[key]) noteMap[key] = [];
           noteMap[key].push(u);
         });
         total += itemTotal;
 
-        // 顯示人員，3 個一組
         const sortedNotes = Object.keys(noteMap).sort(a => a === "（無備註）" ? 1 : -1);
         const userCells = sortedNotes.map(note => {
           const userChunks = [];
@@ -172,7 +216,11 @@ function printSection(id) {
   };
 }
 
-(async function() { await renderOrders(); })();
+(async function() {
+  await loadStores();
+  await loadReminder();
+  await renderOrders();
+})();
 </script>
 </body>
 </html>
