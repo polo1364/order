@@ -24,7 +24,7 @@
     pointer-events: none;
     z-index: 0;
   }
-  #main, #stats, #loginSection, #menuArea, #dateArea, h2, h3 {
+  #main, #stats, #menuArea, #dateArea, h2, h3 {
     position: relative;
     z-index: 1;
   }
@@ -37,7 +37,7 @@
   .hidden { display: none; }
   @media print {
     html, body { margin: 0; padding: 0; background: #fff; }
-    #menuArea, h2, #main p, #storeSelect, #orderDate, button:not(.print-btn) { display: none !important; }
+    #menuArea, h2, #main p, #storeSelect, #orderDate, #userNameInput, button:not(.print-btn) { display: none !important; }
     #stats { margin: 0 auto; width: 100%; font-size: 12pt; }
     table { width: 100%; table-layout: fixed; }
     th, td { padding: 6px; text-align: left; }
@@ -104,12 +104,12 @@ async function loadMenu() {
       if (typeof price === 'object') {
         for (let sub in price) {
           html += `<tr><td>${item}（${sub}）</td><td>${price[sub]}</td>
-          <td><input type='text' placeholder='備註' data-item='${item}-${sub}'></td>
+          <td><input type='text' placeholder='備註'></td>
           <td><input type='radio' name='menuItem' value='${item}-${sub}' data-price='${price[sub]}'></td></tr>`;
         }
       } else {
         html += `<tr><td>${item}</td><td>${price}</td>
-        <td><input type='text' placeholder='備註' data-item='${item}'></td>
+        <td><input type='text' placeholder='備註'></td>
         <td><input type='radio' name='menuItem' value='${item}' data-price='${price}'></td></tr>`;
       }
     }
@@ -129,6 +129,7 @@ function submitOrder() {
   const noteInput = sel ? sel.parentNode.previousElementSibling.firstElementChild.value.trim() : "";
 
   if (!user || !date || !store || !sel) return alert("請填寫所有欄位");
+
   const item = sel.value;
   const price = sel.getAttribute('data-price');
   const note = noteInput || "";
@@ -148,10 +149,7 @@ db.ref('orders').on('value', snapshot => {
     const dateObj = new Date(date);
     const diffTime = today - dateObj;
     const diffDays = diffTime / (1000 * 60 * 60 * 24);
-    if (diffDays > 3) {
-      db.ref(`orders/${date}`).remove();
-      continue;
-    }
+    if (diffDays > 3) { db.ref(`orders/${date}`).remove(); continue; }
 
     const dayDiv = document.createElement('div');
     dayDiv.style.border = '1px solid #ccc';
@@ -203,10 +201,9 @@ db.ref('orders').on('value', snapshot => {
           const totalPrice = parseInt(obj.price) * obj.count;
           if (obj.paid) storePaid += totalPrice;
           else storeUnpaid += totalPrice;
-
           return `<div style="border: 1px solid #ccc; background: rgba(255,255,255,0.6); border-radius: 4px; margin: 2px; padding: 2px 4px; display: inline-block;">
-                    ${name}${showNote}${obj.count > 1 ? `（共${obj.count}份）` : ""} ${paidCheckbox} ${delBtn}
-                  </div>`;
+            ${name}${showNote}${obj.count > 1 ? `（共${obj.count}份）` : ""} ${paidCheckbox} ${delBtn}
+          </div>`;
         }).join("");
 
         table.innerHTML += `<tr>
@@ -218,9 +215,7 @@ db.ref('orders').on('value', snapshot => {
         </tr>`;
       }
 
-      table.innerHTML += `<tr>
-        <td colspan="5">總金額：$${storeTotal} ｜ 已付款：$${storePaid} ｜ 未付款：$${storeUnpaid}</td>
-      </tr>`;
+      table.innerHTML += `<tr><td colspan="5">總金額：$${storeTotal} ｜ 已付款：$${storePaid} ｜ 未付款：$${storeUnpaid}</td></tr>`;
       storeDiv.appendChild(table);
       dayDiv.appendChild(storeDiv);
     }
@@ -236,13 +231,11 @@ db.ref('orders').on('value', snapshot => {
 });
 
 function togglePaid(date, id, checked) { db.ref(`orders/${date}/${id}`).update({ paid: checked }); }
-
 function deleteRecord(date, id) {
   if (!confirm("確定要刪除？")) return;
   db.ref(`orders/${date}/${id}`).remove().then(() => alert("已刪除！"))
     .catch(err => alert(`刪除失敗：${err}`));
 }
-
 function printSection(section) {
   const win = window.open('', '', 'width=800,height=600');
   win.document.write('<html><head><title>列印統計表</title>');
