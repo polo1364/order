@@ -8,7 +8,7 @@
 <style>
   body {
   font-family: sans-serif;
-  color: #111; /* 由 #333 改 #111，讓文字更黑、更清楚 */
+  color: #000; /* 純黑文字，清晰 */
   max-width: 800px;
   margin: auto;
   padding: 1em;
@@ -16,30 +16,24 @@
   background-size: 200px 200px;
   position: relative;
 }
-body::before {
-  content: "";
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(255, 255, 255, 0.85); /* 不透明度從 0.7 改 0.85，讓白色層更明顯 */
-  pointer-events: none;
-  z-index: 0;
+
+/* 不用再額外疊白層，直接讓「主要內容區」加背景色 */
+#main, #reminder, #orders, .section {
+  background: rgba(255, 255, 255, 0.8); /* 白色底，透明度 0.8 */
+  border-radius: 4px; /* 可加圓角美化 */
+  padding: 1em; /* 加點內距，避免字貼邊 */
 }
-  h2 { color: #b30000; margin-bottom: 0.5em; }
-  table, th, td {
-    border: 1px solid #ccc;
-    border-collapse: collapse;
-    padding: 4px 8px;
-    background: #fff;
-  }
-  th { background: #eee; }
-  .section {
-    margin-bottom: 1em;
-    border: 1px solid #ccc;
-    padding: 0.5em;
-    background: #fff;
-    border-radius: 4px;
-  }
+
+h2 {
+  color: #b30000;
+  margin-bottom: 0.5em;
+}
+table, th, td {
+  border: 1px solid #ccc;
+  border-collapse: collapse;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.9); /* 表格也加白底 */
+}
   .action-btn { display: inline-block; }
   @media print {
     html, body { background: #fff !important; }
