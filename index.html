@@ -42,11 +42,31 @@
     table { width: 100%; table-layout: fixed; }
     th, td { padding: 6px; text-align: left; }
   }
+  /* 模態視窗樣式 */
+  .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4); }
+  .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 500px; }
+  .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
+  .close:hover, .close:focus { color: black; cursor: pointer; }
 </style>
 </head>
 <body>
 
 <h2>便當點餐系統</h2>
+
+<!-- 提醒視窗 -->
+<div id="reminderModal" class="modal">
+  <div class="modal-content">
+    <span class="close" id="closeReminder">&times;</span>
+    <h3>下週便當店家提醒</h3>
+    <table id="reminderTable">
+      <thead>
+        <tr><th>日期</th><th>星期</th><th>店家名稱</th></tr>
+      </thead>
+      <tbody id="reminderBody"></tbody>
+    </table>
+    <button id="saveReminder">儲存</button>
+  </div>
+</div>
 
 <div id="main">
   <label>店家：
@@ -64,15 +84,60 @@
 <div id="stats"></div>
 
 <script>
+// Firebase 初始化
 const firebaseConfig = { databaseURL: "https://bento-5bb36-default-rtdb.firebaseio.com/" };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 let menuData = {};
 
-window.onload = async () => {
-  try {
-    const res = await fetch("https://polo1364.github.io/order/menu.json");
-    const data = await res.json();
+// 提醒視窗
+function getNextWeekDates() {
+  const today = new Date();
+  const nextMonday = new Date();
+  const day = today.getDay();
+  const diff = (8 - day) % 7;
+  nextMonday.setDate(today.getDate() + diff);
+  const dates = [];
+  for (let i = 0; i < 5; i++) {
+    const date = new Date(nextMonday);
+    date.setDate(nextMonday.getDate() + i);
+    dates.push(date);
+  }
+  return dates;
+}
+function showReminderModal() {
+  const modal = document.getElementById('reminderModal');
+  const tbody = document.getElementById('reminderBody');
+  tbody.innerHTML = '';
+  const dates = getNextWeekDates();
+  const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+  const savedData = JSON.parse(localStorage.getItem('reminderData')) || {};
+
+  dates.forEach(date => {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+    const weekDay = weekDays[date.getDay()];
+    const store = savedData[dateStr] || '';
+    const row = document.createElement('tr');
+    row.innerHTML = `<td>${dateStr}</td><td>星期${weekDay}</td><td><input type="text" value="${store}" data-date="${dateStr}"></td>`;
+    tbody.appendChild(row);
+  });
+  modal.style.display = 'block';
+}
+document.getElementById('closeReminder').onclick = () => document.getElementById('reminderModal').style.display = 'none';
+document.getElementById('saveReminder').onclick = () => {
+  const inputs = document.querySelectorAll('#reminderBody input');
+  const data = {};
+  inputs.forEach(input => { const date = input.getAttribute('data-date'); const store = input.value.trim(); if (store) data[date] = store; });
+  localStorage.setItem('reminderData', JSON.stringify(data));
+  alert('已儲存提醒資料！'); document.getElementById('reminderModal').style.display = 'none';
+};
+window.onload = () => {
+  showReminderModal();
+  // 載入店家選單
+  fetch("https://polo1364.github.io/order/menu.json").then(res => res.json()).then(data => {
     const storeSelect = document.getElementById('storeSelect');
     for (let store in data) {
       const opt = document.createElement('option');
@@ -80,9 +145,7 @@ window.onload = async () => {
       opt.textContent = store;
       storeSelect.appendChild(opt);
     }
-  } catch {
-    alert("無法載入店家清單，請稍後再試！");
-  }
+  }).catch(() => alert("無法載入店家清單，請稍後再試！"));
 };
 
 async function loadMenu() {
@@ -91,13 +154,11 @@ async function loadMenu() {
   const dateArea = document.getElementById('dateArea');
   menuArea.innerHTML = ""; dateArea.classList.add('hidden');
   if (!store) return;
-
   try {
     const res = await fetch("https://polo1364.github.io/order/menu.json");
     const data = await res.json();
     menuData = data[store];
     if (!menuData) throw new Error("菜單載入失敗");
-
     let html = "<table><tr><th>品項</th><th>價格</th><th>備註</th><th>選取</th></tr>";
     for (let item in menuData) {
       const price = menuData[item];
@@ -116,9 +177,7 @@ async function loadMenu() {
     html += "</table>";
     menuArea.innerHTML = html;
     dateArea.classList.remove('hidden');
-  } catch {
-    alert("無法載入菜單，請稍後再試！");
-  }
+  } catch { alert("無法載入菜單，請稍後再試！"); }
 }
 
 function submitOrder() {
@@ -127,7 +186,6 @@ function submitOrder() {
   const sel = document.querySelector("input[name='menuItem']:checked");
   const user = document.getElementById('userNameInput').value.trim();
   const noteInput = sel ? sel.parentNode.previousElementSibling.firstElementChild.value.trim() : "";
-
   if (!user || !date || !store || !sel) return alert("請填寫所有欄位");
   const item = sel.value;
   const price = sel.getAttribute('data-price');
@@ -135,127 +193,15 @@ function submitOrder() {
   const key = db.ref('orders/' + date).push().key;
   db.ref('orders/' + date + '/' + key).set({ user, item, price, note, store });
 }
-
-db.ref('orders').on('value', snapshot => {
-  const stats = document.getElementById('stats');
-  stats.innerHTML = '';
-  const data = snapshot.val();
-  if (!data) return stats.innerHTML = '尚無資料';
-
-  const today = new Date();
-
-  for (let date in data) {
-    const dateObj = new Date(date);
-    const diffTime = today - dateObj;
-    const diffDays = diffTime / (1000 * 60 * 60 * 24);
-    if (diffDays > 3) { db.ref(`orders/${date}`).remove(); continue; }
-
-    const dayDiv = document.createElement('div');
-    dayDiv.style.border = '1px solid #ccc';
-    dayDiv.style.marginBottom = '1em';
-    dayDiv.style.padding = '0.5em';
-    const weekDay = ['日', '一', '二', '三', '四', '五', '六'][new Date(date).getDay()];
-    dayDiv.innerHTML = `<h4>${date}（星期${weekDay}）</h4>`;
-
-    const byStore = {};
-    for (let id in data[date]) {
-      const { user: u, item, price, note = "", store, paid = false } = data[date][id];
-      const [itemName, size] = item.split("-");
-      const displayItem = size ? `${itemName}（${size}）` : itemName;
-
-      if (!byStore[store]) byStore[store] = {};
-      if (!byStore[store][displayItem]) byStore[store][displayItem] = [];
-      byStore[store][displayItem].push({ user: u, id, price, note, paid });
-    }
-
-    for (let store in byStore) {
-      const storeDiv = document.createElement('div');
-      storeDiv.style.marginBottom = '0.5em';
-      storeDiv.innerHTML = `<h5>${store}</h5>`;
-
-      const table = document.createElement('table');
-      table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th><th>單價</th><th>小計</th></tr>";
-
-      let storeTotal = 0, storePaid = 0, storeUnpaid = 0;
-
-      for (let item in byStore[store]) {
-        const users = byStore[store][item];
-
-        // 檢查有無備註加價
-        let extra = 0;
-        users.forEach(u => {
-          const match = u.note.match(/加(\d+)元/);
-          if (match) extra = parseInt(match[1]);
-        });
-
-        const itemUnitPrice = parseInt(users[0].price) + extra;
-        const itemTotalPrice = itemUnitPrice * users.length;
-        storeTotal += itemTotalPrice;
-
-        const userNoteMap = {};
-        users.forEach(u => {
-          const noteKey = u.note || "（無備註）";
-          const key = `${u.user}__${noteKey}`;
-          if (!userNoteMap[key]) userNoteMap[key] = { count: 0, ids: [], note: noteKey, paid: u.paid, price: u.price };
-          userNoteMap[key].count++;
-          userNoteMap[key].ids.push(u.id);
-        });
-
-        const userCells = Object.entries(userNoteMap).map(([key, obj]) => {
-          const [name, note] = key.split("__");
-          const showNote = note && note !== "（無備註）" ? `（${note}）` : "";
-          const delBtn = `<button class='delete-btn' onclick='deleteRecord("${date}","${obj.ids[0]}")'>刪除</button>`;
-          const paidCheckbox = `<input type='checkbox' ${obj.paid ? "checked" : ""} onclick='togglePaid("${date}","${obj.ids[0]}", this.checked)'>`;
-
-          const match = note.match(/加(\d+)元/);
-          const finalPrice = (parseInt(obj.price) + (match ? parseInt(match[1]) : 0)) * obj.count;
-
-          if (obj.paid) storePaid += finalPrice;
-          else storeUnpaid += finalPrice;
-
-          return `<div style="border: 1px solid #ccc; background: rgba(255,255,255,0.6); border-radius: 4px; margin: 2px; padding: 2px 4px; display: inline-block;">
-            ${name}${showNote}${obj.count > 1 ? `（共${obj.count}份）` : ""} ${paidCheckbox} ${delBtn}
-          </div>`;
-        }).join("");
-
-        table.innerHTML += `<tr>
-          <td>${item}</td>
-          <td>${userCells}</td>
-          <td>${users.length}</td>
-          <td>$${itemUnitPrice}</td>
-          <td>$${itemTotalPrice}</td>
-        </tr>`;
-      }
-
-      table.innerHTML += `<tr><td colspan="5">總金額：$${storeTotal} ｜ 已付款：$${storePaid} ｜ 未付款：$${storeUnpaid}</td></tr>`;
-      storeDiv.appendChild(table);
-      dayDiv.appendChild(storeDiv);
-    }
-
-    const printBtn = document.createElement('button');
-    printBtn.innerText = `列印 ${date} 統計表`;
-    printBtn.classList.add('print-btn');
-    printBtn.onclick = () => printSection(dayDiv);
-    dayDiv.appendChild(printBtn);
-
-    stats.appendChild(dayDiv);
-  }
-});
-
 function togglePaid(date, id, checked) { db.ref(`orders/${date}/${id}`).update({ paid: checked }); }
 function deleteRecord(date, id) {
   if (!confirm("確定要刪除？")) return;
-  db.ref(`orders/${date}/${id}`).remove().then(() => alert("已刪除！"))
-    .catch(err => alert(`刪除失敗：${err}`));
+  db.ref(`orders/${date}/${id}`).remove().then(() => alert("已刪除！")).catch(err => alert(`刪除失敗：${err}`));
 }
 function printSection(section) {
   const win = window.open('', '', 'width=800,height=600');
-  win.document.write('<html><head><title>列印統計表</title>');
-  win.document.write('<style>table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 4px 8px; }</style>');
-  win.document.write('</head><body>');
-  win.document.write(section.innerHTML);
-  win.document.write('</body></html>');
-  win.document.close(); win.print();
+  win.document.write('<html><head><title>列印統計表</title><style>table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 4px 8px; }</style></head><body>');
+  win.document.write(section.innerHTML); win.document.write('</body></html>'); win.document.close(); win.print();
 }
 </script>
 
