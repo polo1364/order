@@ -8,7 +8,7 @@
 <style>
   body {
     font-family: sans-serif;
-    color: #333; /* 字體顏色加深 */
+    color: #333;
     max-width: 800px;
     margin: auto;
     padding: 1em;
@@ -50,25 +50,17 @@
     background: #fff;
     border-radius: 4px;
   }
-  
-<style>
+  /* 強制隱藏所有互動按鈕 & 互動欄位（列印模式） */
   @media print {
-    * {
-      -webkit-print-color-adjust: exact !important; /* 如果有色彩，強制印出 */
-    }
-    html, body {
-      margin: 0;
-      padding: 0;
-      background: #fff !important;
-    }
-    button, input[type="checkbox"], input[type="radio"], input[type="text"], select {
+    html, body { margin: 0; padding: 0; background: #fff !important; }
+    button, input[type="text"], input[type="checkbox"], input[type="radio"], select {
       display: none !important;
     }
     .delete-btn, .print-btn, .toggle-btn {
       display: none !important;
     }
+    .section { page-break-after: always; }
   }
-</style>
 </style>
 </head>
 <body>
