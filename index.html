@@ -29,19 +29,14 @@
     position: relative;
     z-index: 1;
   }
-  h2 {
-    color: #b30000;
-    margin-bottom: 0.5em;
-  }
+  h2 { color: #b30000; margin-bottom: 0.5em; }
   table, th, td {
     border: 1px solid #ccc;
     border-collapse: collapse;
     padding: 4px 8px;
     background: #fff;
   }
-  th {
-    background: #eee;
-  }
+  th { background: #eee; }
   .hidden { display: none; }
   .section {
     margin-bottom: 1em;
@@ -50,16 +45,20 @@
     background: #fff;
     border-radius: 4px;
   }
-  /* 統一互動元素樣式 */
   .action-btn, .reminder-select {
     display: inline-block;
   }
-  /* 列印模式下，隱藏所有按鈕和互動欄位 */
   @media print {
     html, body { margin: 0; padding: 0; background: #fff !important; }
-    .action-btn, button, input, select {
+    button:not(.print-btn), input, select {
       display: none !important;
+      visibility: hidden !important;
     }
+    .delete-btn, .toggle-btn, .reminder-select, .reminder-edit-btn {
+      display: none !important;
+      visibility: hidden !important;
+    }
+    .section { page-break-after: always; }
   }
 </style>
 </head>
@@ -97,7 +96,6 @@ async function clearThisWeekReminderIfNeeded() {
   const today = new Date();
   if (today.getDay() === 1) {
     await db.ref('reminder/thisWeek').remove();
-    console.log("已清除本週提醒");
   }
 }
 
@@ -156,7 +154,7 @@ async function renderOrders() {
     const section = document.createElement('div');
     section.className = 'section';
     section.innerHTML = `<h4>${yyyyMMdd}（星期${d}）：${store}
-      <button class="action-btn" onclick="toggleMenu('${yyyyMMdd}')">顯示/隱藏菜單</button></h4>
+      <button class="action-btn toggle-btn" onclick="toggleMenu('${yyyyMMdd}')">顯示/隱藏菜單</button></h4>
       <div id="menu_${yyyyMMdd}" style="display:none;"></div>
       <div id="stats_${yyyyMMdd}"></div>`;
     document.getElementById('orders').appendChild(section);
@@ -214,12 +212,13 @@ async function renderOrders() {
         const priceCell = `$${unitPrice}<br><span style="font-size: 0.8em; color: #555;">（共 ${itemCount} 份）</span>`;
         const userCells = users.map(u => {
           const paidCk = `<input type='checkbox' ${u.paid ? "checked" : ""} onclick='togglePaid("${yyyyMMdd}","${u.id}", this.checked)'>`;
-          const delBtn = `<button class="action-btn" onclick='deleteOrder("${yyyyMMdd}","${u.id}")'>刪除</button>`;
+          const delBtn = `<button class="action-btn delete-btn" onclick='deleteOrder("${yyyyMMdd}","${u.id}")'>刪除</button>`;
           return `<div>${u.user}${u.note ? `（${u.note}）` : ""} ${paidCk} ${delBtn}</div>`;
         }).join("");
         table += `<tr><td>${item}</td><td>${userCells}</td><td>${itemCount}</td><td>${priceCell}</td><td>$${itemTotal}</td></tr>`;
       }
-      table += `<tr><td colspan="5">總金額：$${total} ｜ 已付款：$${paidTotal} ｜ 未付款：$${unpaidTotal}</td></tr></table>`;
+      table += `<tr><td colspan="5">總金額：$${total} ｜ 已付款：$${paidTotal} ｜ 未付款：$${unpaidTotal}</td></tr></table>
+        <button class="print-btn" onclick='printSection("stats_${yyyyMMdd}")'>列印統計表</button>`;
       statsDiv.innerHTML = table;
     });
   }
@@ -229,7 +228,6 @@ function toggleMenu(date) {
   const div = document.getElementById(`menu_${date}`);
   div.style.display = div.style.display === "none" ? "block" : "none";
 }
-
 function submitOrder(date, store) {
   const sel = document.querySelector(`input[name='menu_${date}']:checked`);
   const user = document.getElementById(`user_${date}`).value.trim();
@@ -242,10 +240,8 @@ function submitOrder(date, store) {
   db.ref('orders/' + date + '/' + key).set({ user, item, price, note, store });
   alert("已送出！");
 }
-
 function togglePaid(date, id, checked) { db.ref(`orders/${date}/${id}`).update({ paid: checked }); }
 function deleteOrder(date, id) { if (confirm("確定刪除？")) db.ref(`orders/${date}/${id}`).remove(); }
-
 function printSection(id) {
   const statsDiv = document.getElementById(id);
   const cleanHtml = statsDiv.querySelector("table").outerHTML;
@@ -260,7 +256,6 @@ function printSection(id) {
   win.print();
 }
 
-// 初始化
 (async function() {
   await loadStores();
   await clearThisWeekReminderIfNeeded();
