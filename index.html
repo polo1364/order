@@ -182,67 +182,67 @@ async function renderOrders() {
     menuDiv.innerHTML = html;
 
     db.ref('orders/' + yyyyMMdd).on('value', snap => {
-  const data = snap.val();
-  const statsDiv = document.getElementById(`stats_${yyyyMMdd}`);
-  if (!data) { statsDiv.innerHTML = '尚無資料'; return; }
+      const data = snap.val();
+      const statsDiv = document.getElementById(`stats_${yyyyMMdd}`);
+      if (!data) { statsDiv.innerHTML = '尚無資料'; return; }
+      let table = "<table><tr><th>品項</th><th>人員</th><th>數量</th><th>單價</th><th>小計</th></tr>";
+      let total = 0, paidTotal = 0, unpaidTotal = 0;
+      const byItem = {};
+      for (let id in data) {
+        const { user, item, price, note = "", paid = false } = data[id];
+        const [itemName, size] = item.split("-");
+        const displayItem = size ? `${itemName}（${size}）` : itemName;
+        if (!byItem[displayItem]) byItem[displayItem] = [];
+        byItem[displayItem].push({ user, id, price, note, paid });
+      }
+      for (let item in byItem) {
+        const users = byItem[item];
+        const unitPrice = parseInt(users[0].price);
+        const itemCount = users.length;
+        let itemTotal = 0;
+        users.forEach(u => {
+          const extraMatch = u.note.match(/加(\d+)元/);
+          const extra = extraMatch ? parseInt(extraMatch[1]) : 0;
+          const finalPrice = unitPrice + extra;
+          itemTotal += finalPrice;
+          if (u.paid) paidTotal += finalPrice;
+          else unpaidTotal += finalPrice;
+        });
+        total += itemTotal;
 
-  let table = "<table><tr><th>品項</th><th>人員</th><th>數量</th><th>單價</th><th>小計</th></tr>";
-  let total = 0, paidTotal = 0, unpaidTotal = 0;
-  const byItem = {};
-  for (let id in data) {
-    const { user, item, price, note = "", paid = false } = data[id];
-    const [itemName, size] = item.split("-");
-    const displayItem = size ? `${itemName}（${size}）` : itemName;
-    if (!byItem[displayItem]) byItem[displayItem] = [];
-    byItem[displayItem].push({ user, id, price, note, paid });
-  }
-  for (let item in byItem) {
-    const users = byItem[item];
-    const unitPrice = parseInt(users[0].price);
-    const itemCount = users.length;
-    let itemTotal = 0;
-    users.forEach(u => {
-      const extraMatch = u.note.match(/加(\d+)元/);
-      const extra = extraMatch ? parseInt(extraMatch[1]) : 0;
-      const finalPrice = unitPrice + extra;
-      itemTotal += finalPrice;
-      if (u.paid) paidTotal += finalPrice;
-      else unpaidTotal += finalPrice;
+        const userCells = (() => {
+          const groups = {};
+          users.forEach(u => {
+            const key = u.note || "（無備註）";
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(u.user);
+          });
+          const sortedNotes = Object.keys(groups).sort((a, b) => {
+            if (a === "（無備註）") return 1;
+            if (b === "（無備註）") return -1;
+            return 0;
+          });
+          const cells = sortedNotes.map(note => {
+            const names = groups[note];
+            let result = "";
+            for (let i = 0; i < names.length; i += 3) {
+              const chunk = names.slice(i, i + 3).join("、");
+              result += `<div>${note !== "（無備註）" ? `${note}：` : ""}${chunk}</div>`;
+            }
+            return result;
+          });
+          return cells.join("");
+        })();
+
+        const priceCell = `$${unitPrice}<br><span style="font-size: 0.8em; color: #555;">（共 ${itemCount} 份）</span>`;
+        table += `<tr><td>${item}</td><td>${userCells}</td><td>${itemCount}</td><td>${priceCell}</td><td>$${itemTotal}</td></tr>`;
+      }
+      table += `<tr><td colspan="5">總金額：$${total} ｜ 已付款：$${paidTotal} ｜ 未付款：$${unpaidTotal}</td></tr></table>
+        <button class="print-btn" onclick='printSection("stats_${yyyyMMdd}")'>列印統計表</button>`;
+      statsDiv.innerHTML = table;
     });
-    total += itemTotal;
-
-    // 這裡放上面那段 userCells 的生成邏輯
-    const userCells = (() => {
-      const groups = {};
-      users.forEach(u => {
-        const key = u.note || "（無備註）";
-        if (!groups[key]) groups[key] = [];
-        groups[key].push(u.user);
-      });
-      const sortedNotes = Object.keys(groups).sort((a, b) => {
-        if (a === "（無備註）") return 1;
-        if (b === "（無備註）") return -1;
-        return 0;
-      });
-      const cells = sortedNotes.map(note => {
-        const names = groups[note];
-        let result = "";
-        for (let i = 0; i < names.length; i += 3) {
-          const chunk = names.slice(i, i + 3).join("、");
-          result += `<div>${note !== "（無備註）" ? `${note}：` : ""}${chunk}</div>`;
-        }
-        return result;
-      });
-      return cells.join("");
-    })();
-
-    const priceCell = `$${unitPrice}<br><span style="font-size: 0.8em; color: #555;">（共 ${itemCount} 份）</span>`;
-    table += `<tr><td>${item}</td><td>${userCells}</td><td>${itemCount}</td><td>${priceCell}</td><td>$${itemTotal}</td></tr>`;
   }
-  table += `<tr><td colspan="5">總金額：$${total} ｜ 已付款：$${paidTotal} ｜ 未付款：$${unpaidTotal}</td></tr></table>
-    <button class="print-btn" onclick='printSection("stats_${yyyyMMdd}")'>列印統計表</button>`;
-  statsDiv.innerHTML = table;
-});
+}
 
 function toggleMenu(date) {
   const div = document.getElementById(`menu_${date}`);
@@ -263,17 +263,9 @@ function submitOrder(date, store) {
 function togglePaid(date, id, checked) { db.ref(`orders/${date}/${id}`).update({ paid: checked }); }
 function deleteOrder(date, id) { if (confirm("確定刪除？")) db.ref(`orders/${date}/${id}`).remove(); }
 function printSection(id) {
-  const section = document.getElementById(id).parentElement; // 取得外層 section，包含日期店家
-
-  // ✅ 找出所有互動按鈕與欄位，先記錄起來
+  const section = document.getElementById(id).parentElement;
   const interactiveElements = section.querySelectorAll('button, input, select');
-
-  // ✅ 隱藏這些元素
-  interactiveElements.forEach(el => {
-    el.style.display = 'none';
-  });
-
-  // ✅ 產生新的列印視窗，內容是乾淨的
+  interactiveElements.forEach(el => { el.style.display = 'none'; });
   const win = window.open('', '', 'width=800,height=600');
   win.document.write('<html><head><title>列印統計表</title>');
   win.document.write('<style>body { font-family: sans-serif; } h4 { margin-bottom: 0.5em; } table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 4px 8px; } th { background: #eee; }</style>');
@@ -281,19 +273,11 @@ function printSection(id) {
   win.document.write(section.innerHTML);
   win.document.write('</body></html>');
   win.document.close();
-
-  // ✅ 印表機視窗開啟後，觸發列印
   win.onload = () => {
     win.print();
-
-    // ✅ 關閉列印視窗
     win.onafterprint = () => {
       win.close();
-
-      // ✅ 列印完畢，恢復原本頁面上的按鈕
-      interactiveElements.forEach(el => {
-        el.style.display = '';
-      });
+      interactiveElements.forEach(el => { el.style.display = ''; });
     };
   };
 }
