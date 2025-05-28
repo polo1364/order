@@ -114,14 +114,15 @@ async function renderOrders() {
   const diff = (day === 0 ? 1 : 8 - day);
   nextMonday.setDate(today.getDate() + diff);
 
-  const days = [1, 2, 3, 4, 5]; // 1:一 ~ 5:五
   const weekDayMap = { 0: "日", 1: "一", 2: "二", 3: "三", 4: "四", 5: "五", 6: "六" };
 
-  for (let idx = 0; idx < days.length; idx++) {
+  for (let i = 0; i < 7; i++) {
     const date = new Date(nextMonday);
-    date.setDate(nextMonday.getDate() + idx);
+    date.setDate(nextMonday.getDate() + i);
     const yyyyMMdd = date.toISOString().split('T')[0];
     const weekDay = weekDayMap[date.getDay()];
+    if (!["一", "二", "三", "四", "五"].includes(weekDay)) continue;
+
     const store = nextWeekReminder[weekDay] || "未設定";
     if (store === "未設定") continue;
 
@@ -175,8 +176,9 @@ async function renderOrders() {
         const itemCount = users.length;
         let itemTotal = 0;
 
+        const sortedUsers = [...users].sort((a, b) => (b.note ? 1 : 0) - (a.note ? 1 : 0));
         const noteMap = {};
-        users.forEach(u => {
+        sortedUsers.forEach(u => {
           const key = u.note || "（無備註）";
           if (!noteMap[key]) noteMap[key] = {};
           if (!noteMap[key][u.user]) noteMap[key][u.user] = { ...u, count: 0 };
