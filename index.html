@@ -36,7 +36,7 @@ th { background: #eee; }
 .day-label { display: block; margin-bottom: 0.3em; }
 @media print {
   html, body { margin: 0; padding: 0; background: #fff; }
-  button, input, select { display: none !important; }
+  button, input, select, .delete-btn, .print-btn { display: none !important; }
   .section { page-break-after: always; }
 }
 </style>
@@ -207,17 +207,25 @@ async function renderOrders() {
         });
         total += itemTotal;
         const priceCell = `$${unitPrice}<br><span style="font-size: 0.8em; color: #555;">（共 ${itemCount} 份）</span>`;
-        const userCells = users.map(u => {
-          const paidCk = `<input type='checkbox' ${u.paid ? "checked" : ""} onclick='togglePaid("${yyyyMMdd}","${u.id}", this.checked)'>`;
-          const delBtn = `<button onclick='deleteOrder("${yyyyMMdd}","${u.id}")'>刪除</button>`;
-          return `<div>${u.user}${u.note ? `（${u.note}）` : ""} ${paidCk} ${delBtn}</div>`;
-        }).join("");
-        table += `<tr><td>${item}</td><td>${userCells}</td><td>${itemCount}</td><td>${priceCell}</td><td>$${itemTotal}</td></tr>`;
-      }
-      table += `<tr><td colspan="5">總金額：$${total} ｜ 已付款：$${paidTotal} ｜ 未付款：$${unpaidTotal}</td></tr></table>
-        <button onclick='printSection("stats_${yyyyMMdd}")'>列印統計表</button>`;
-      statsDiv.innerHTML = table;
-    });
+const userCells = users.map(u => {
+  const paidCk = `<input type='checkbox' ${u.paid ? "checked" : ""} onclick='togglePaid("${yyyyMMdd}","${u.id}", this.checked)'>`;
+  const delBtn = `<button class="delete-btn" onclick='deleteOrder("${yyyyMMdd}","${u.id}")'>刪除</button>`;
+  return `<div>${u.user}${u.note ? `（${u.note}）` : ""} ${paidCk} ${delBtn}</div>`;
+}).join("");
+
+table += `<tr>
+  <td>${item}</td>
+  <td>${userCells}</td>
+  <td>${itemCount}</td>
+  <td>${priceCell}</td>
+  <td>$${itemTotal}</td>
+</tr>`;
+}
+
+table += `<tr><td colspan="5">總金額：$${total} ｜ 已付款：$${paidTotal} ｜ 未付款：$${unpaidTotal}</td></tr></table>
+  <button class="print-btn" onclick='printSection("stats_${yyyyMMdd}")'>列印統計表</button>`;
+statsDiv.innerHTML = table;
+});
   }
 }
 
