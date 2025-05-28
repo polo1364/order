@@ -7,24 +7,24 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <style>
   body {
-    font-family: sans-serif;
-    color: #333;
-    max-width: 800px;
-    margin: auto;
-    padding: 1em;
-    background: url('https://raw.githubusercontent.com/polo1364/order/refs/heads/main/FB5BBC50-D21A-4F57-AF32-ABE798E3ABA1.png') repeat;
-    background-size: 200px 200px;
-    position: relative;
-  }
-  body::before {
-    content: "";
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(255, 255, 255, 0.7);
-    pointer-events: none;
-    z-index: 0;
-  }
+  font-family: sans-serif;
+  color: #111; /* 由 #333 改 #111，讓文字更黑、更清楚 */
+  max-width: 800px;
+  margin: auto;
+  padding: 1em;
+  background: url('https://raw.githubusercontent.com/polo1364/order/refs/heads/main/FB5BBC50-D21A-4F57-AF32-ABE798E3ABA1.png') repeat;
+  background-size: 200px 200px;
+  position: relative;
+}
+body::before {
+  content: "";
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(255, 255, 255, 0.85); /* 不透明度從 0.7 改 0.85，讓白色層更明顯 */
+  pointer-events: none;
+  z-index: 0;
+}
   h2 { color: #b30000; margin-bottom: 0.5em; }
   table, th, td {
     border: 1px solid #ccc;
