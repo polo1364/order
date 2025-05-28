@@ -51,17 +51,24 @@
     border-radius: 4px;
   }
   
-@media print {
-  html, body { 
-    margin: 0; 
-    padding: 0; 
-    background: #fff !important; 
+<style>
+  @media print {
+    * {
+      -webkit-print-color-adjust: exact !important; /* 如果有色彩，強制印出 */
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #fff !important;
+    }
+    button, input[type="checkbox"], input[type="radio"], input[type="text"], select {
+      display: none !important;
+    }
+    .delete-btn, .print-btn, .toggle-btn {
+      display: none !important;
+    }
   }
-  button, input, select, .delete-btn, .print-btn, .toggle-btn { 
-    display: none !important; 
-  }
-  .section { page-break-after: always; }
-}
+</style>
 </style>
 </head>
 <body>
@@ -251,12 +258,14 @@ function submitOrder(date, store) {
 function togglePaid(date, id, checked) { db.ref(`orders/${date}/${id}`).update({ paid: checked }); }
 function deleteOrder(date, id) { if (confirm("確定刪除？")) db.ref(`orders/${date}/${id}`).remove(); }
 function printSection(id) {
-  const statsDiv = document.getElementById(id).parentElement;
+  const statsDiv = document.getElementById(id);
+  const cleanHtml = statsDiv.querySelector("table").outerHTML;
+  const sectionHeader = statsDiv.parentElement.querySelector("h4").outerHTML;
   const win = window.open('', '', 'width=800,height=600');
   win.document.write('<html><head><title>列印統計表</title>');
   win.document.write('<style>body { font-family: sans-serif; } h4 { margin-bottom: 0.5em; } table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 4px 8px; } th { background: #eee; }</style>');
   win.document.write('</head><body>');
-  win.document.write(statsDiv.innerHTML);
+  win.document.write(sectionHeader + cleanHtml);
   win.document.write('</body></html>');
   win.document.close();
   win.print();
