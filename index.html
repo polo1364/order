@@ -190,9 +190,32 @@ async function renderOrders() {
   }
 }
 
-function toggleMenu(date) {
-  const div = document.getElementById(`menu_${date}`);
-  div.style.display = div.style.display === "none" ? "block" : "none";
+async function toggleMenu(date) {
+  const menuDiv = document.getElementById(`menu_${date}`);
+  if (menuDiv.innerHTML.trim() === "") {
+    const res = await fetch("menu.json");
+    const data = await res.json();
+    const store = nextWeekReminder[date.split('-')[2] - 1] || "未設定";
+    const menu = data[store];
+    if (!menu) {
+      menuDiv.innerHTML = "<p>找不到菜單</p>";
+      menuDiv.style.display = "block";
+      return;
+    }
+    let html = "<table><tr><th>品項</th><th>價格</th></tr>";
+    for (let item in menu) {
+      if (typeof menu[item] === "object") {
+        for (let sub in menu[item]) {
+          html += `<tr><td>${item}（${sub}）</td><td>${menu[item][sub]}</td></tr>`;
+        }
+      } else {
+        html += `<tr><td>${item}</td><td>${menu[item]}</td></tr>`;
+      }
+    }
+    html += "</table>";
+    menuDiv.innerHTML = html;
+  }
+  menuDiv.style.display = menuDiv.style.display === "none" ? "block" : "none";
 }
 function togglePaid(date, id, checked) { db.ref(`orders/${date}/${id}`).update({ paid: checked }); }
 function deleteOrder(date, id) { if (confirm("確定刪除？")) db.ref(`orders/${date}/${id}`).remove(); }
