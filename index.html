@@ -29,19 +29,14 @@
     position: relative;
     z-index: 1;
   }
-  h2 {
-    color: #b30000;
-    margin-bottom: 0.5em;
-  }
+  h2 { color: #b30000; margin-bottom: 0.5em; }
   table, th, td {
     border: 1px solid #ccc;
     border-collapse: collapse;
     padding: 4px 8px;
     background: #fff;
   }
-  th {
-    background: #eee;
-  }
+  th { background: #eee; }
   .hidden { display: none; }
   .section {
     margin-bottom: 1em;
@@ -50,24 +45,13 @@
     background: #fff;
     border-radius: 4px;
   }
-
-  /* 🔥 新增: 把「刪除」和「顯示菜單」按鈕額外指定 class，方便統一隱藏 */
-  .delete-btn, .print-btn, .toggle-btn {
+  .delete-btn, .print-btn, .toggle-btn, .reminder-select, .reminder-edit-btn {
     display: inline-block;
   }
-
-  /* 🖨️ 列印時，完全隱藏互動元素 */
   @media print {
-    html, body {
-      margin: 0;
-      padding: 0;
-      background: #fff !important;
-    }
-    button, input, select {
-      display: none !important;
-      visibility: hidden !important;
-    }
-    .delete-btn, .print-btn, .toggle-btn, .reminder-select {
+    html, body { margin: 0; padding: 0; background: #fff !important; }
+    button, input, select,
+    .delete-btn, .print-btn, .toggle-btn, .reminder-select, .reminder-edit-btn {
       display: none !important;
       visibility: hidden !important;
     }
@@ -82,10 +66,9 @@
 <div id="reminder">
   <h3>本週便當</h3>
   <div id="thisWeekSelects"></div>
-
   <h3>下週便當</h3>
   <div id="nextWeekSelects"></div>
-  <button onclick="saveNextWeekReminder()">儲存提醒設定</button>
+  <button class="reminder-edit-btn" onclick="saveNextWeekReminder()">儲存提醒設定</button>
 </div>
 
 <div id="orders"></div>
@@ -105,7 +88,6 @@ async function loadStores() {
   storeList = Object.keys(data);
 }
 
-// 檢查是否要清除本週提醒
 async function clearThisWeekReminderIfNeeded() {
   const today = new Date();
   if (today.getDay() === 1) {
@@ -114,13 +96,11 @@ async function clearThisWeekReminderIfNeeded() {
   }
 }
 
-// 載入提醒設定
 async function loadReminder() {
   const snapThis = await db.ref('reminder/thisWeek').once('value');
   thisWeekReminder = snapThis.val() || { 一: "", 二: "", 三: "", 四: "", 五: "" };
   const snapNext = await db.ref('reminder/nextWeek').once('value');
   nextWeekReminder = snapNext.val() || { 一: "", 二: "", 三: "", 四: "", 五: "" };
-
   renderReminder();
 }
 
@@ -130,7 +110,7 @@ function renderReminder() {
   days.forEach(d => {
     htmlThis += `<div>星期${d}：<select disabled><option>${thisWeekReminder[d] || "未設定"}</option></select></div>`;
     htmlNext += `<div>星期${d}：
-      <select id="dayNext_${d}">
+      <select class="reminder-select" id="dayNext_${d}">
         <option value="">請選擇</option>
         ${storeList.map(s => `<option value="${s}" ${nextWeekReminder[d] === s ? "selected" : ""}>${s}</option>`).join("")}
       </select></div>`;
@@ -171,7 +151,7 @@ async function renderOrders() {
     const section = document.createElement('div');
     section.className = 'section';
     section.innerHTML = `<h4>${yyyyMMdd}（星期${d}）：${store}
-      <button onclick="toggleMenu('${yyyyMMdd}')">顯示/隱藏菜單</button></h4>
+      <button class="toggle-btn" onclick="toggleMenu('${yyyyMMdd}')">顯示/隱藏菜單</button></h4>
       <div id="menu_${yyyyMMdd}" style="display:none;"></div>
       <div id="stats_${yyyyMMdd}"></div>`;
     document.getElementById('orders').appendChild(section);
@@ -195,7 +175,7 @@ async function renderOrders() {
     }
     html += `</table>
       <input type="text" id="user_${yyyyMMdd}" placeholder="輸入姓名/工號" />
-      <button onclick='submitOrder("${yyyyMMdd}","${store}")'>送出</button>`;
+      <button class="submit-btn" onclick='submitOrder("${yyyyMMdd}","${store}")'>送出</button>`;
     menuDiv.innerHTML = html;
 
     db.ref('orders/' + yyyyMMdd).on('value', snap => {
@@ -228,14 +208,14 @@ async function renderOrders() {
         total += itemTotal;
         const priceCell = `$${unitPrice}<br><span style="font-size: 0.8em; color: #555;">（共 ${itemCount} 份）</span>`;
         const userCells = users.map(u => {
-          const paidCk = `<input type='checkbox' ${u.paid ? "checked" : ""} onclick='togglePaid("${yyyyMMdd}","${u.id}", this.checked)'>`;
-          const delBtn = `<button onclick='deleteOrder("${yyyyMMdd}","${u.id}")'>刪除</button>`;
+          const paidCk = `<input type='checkbox' class="paid-checkbox" ${u.paid ? "checked" : ""} onclick='togglePaid("${yyyyMMdd}","${u.id}", this.checked)'>`;
+          const delBtn = `<button class="delete-btn" onclick='deleteOrder("${yyyyMMdd}","${u.id}")'>刪除</button>`;
           return `<div>${u.user}${u.note ? `（${u.note}）` : ""} ${paidCk} ${delBtn}</div>`;
         }).join("");
         table += `<tr><td>${item}</td><td>${userCells}</td><td>${itemCount}</td><td>${priceCell}</td><td>$${itemTotal}</td></tr>`;
       }
       table += `<tr><td colspan="5">總金額：$${total} ｜ 已付款：$${paidTotal} ｜ 未付款：$${unpaidTotal}</td></tr></table>
-        <button onclick='printSection("stats_${yyyyMMdd}")'>列印統計表</button>`;
+        <button class="print-btn" onclick='printSection("stats_${yyyyMMdd}")'>列印統計表</button>`;
       statsDiv.innerHTML = table;
     });
   }
@@ -275,7 +255,6 @@ function printSection(id) {
   win.print();
 }
 
-// 初始化
 (async function() {
   await loadStores();
   await clearThisWeekReminderIfNeeded();
