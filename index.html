@@ -32,26 +32,33 @@
 <h3>下週店家與菜單</h3>
 <div id="reminderStores"></div>
 
+<h3>人數統計</h3>
+<div id="stats"></div>
+<button onclick="printStats()">列印統計表</button>
+
 <script>
-const reminderDays = ['星期一', '星期二', '星期三', '星期四', '星期五'];
+const firebaseConfig = { databaseURL: "https://bento-5bb36-default-rtdb.firebaseio.com/" };
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-// 生成下拉式提醒視窗
+let storesData = {};
+
+// 讀取菜單 JSON
+async function loadMenuData() {
+  const res = await fetch("menu.json");
+  storesData = await res.json();
+}
+
+// 提醒視窗
 window.onload = async () => {
-  const reminderBody = document.getElementById('reminderBody');
-  let storesData = {};
-  try {
-    const res = await fetch("menu.json");
-    storesData = await res.json();
-  } catch {
-    alert("無法載入菜單資料！");
-    return;
-  }
+  await loadMenuData();
 
+  const reminderBody = document.getElementById('reminderBody');
   const today = new Date();
   const nextMonday = new Date(today);
   nextMonday.setDate(today.getDate() + ((8 - today.getDay()) % 7 || 7));
 
-  reminderDays.forEach((day, i) => {
+  ['一', '二', '三', '四', '五'].forEach((day, i) => {
     const date = new Date(nextMonday);
     date.setDate(date.getDate() + i);
     const dateStr = date.toISOString().split('T')[0];
@@ -62,15 +69,15 @@ window.onload = async () => {
       select.innerHTML += `<option value="${store}">${store}</option>`;
     });
     const div = document.createElement('div');
-    div.innerHTML = `<strong>${dateStr}（${day}）</strong>: `;
+    div.innerHTML = `<strong>${dateStr}（星期${day}）</strong>: `;
     div.appendChild(select);
     reminderBody.appendChild(div);
   });
 
-  renderReminderStores(); // 初始化顯示
+  renderReminderStores();
 };
 
-// 儲存提醒資料
+// 儲存提醒
 document.getElementById('saveReminder').onclick = () => {
   const selects = document.querySelectorAll('#reminderBody select');
   const data = {};
@@ -82,70 +89,131 @@ document.getElementById('saveReminder').onclick = () => {
   localStorage.setItem('reminderData', JSON.stringify(data));
   alert('已儲存提醒資料！');
   document.getElementById('reminderModal').style.display = 'none';
-  renderReminderStores(); // 更新主頁
+  renderReminderStores();
 };
 
-// 渲染主頁下週店家
-async function renderReminderStores() {
+// 顯示提醒店家
+function renderReminderStores() {
   const container = document.getElementById('reminderStores');
   container.innerHTML = '';
   const data = JSON.parse(localStorage.getItem('reminderData')) || {};
 
-  let storesData = {};
-  try {
-    const res = await fetch("menu.json");
-    storesData = await res.json();
-  } catch {
-    alert("無法載入菜單資料！");
-    return;
-  }
-
   Object.entries(data).forEach(([date, store]) => {
     const div = document.createElement('div');
-    div.style.marginBottom = '0.5em';
     div.innerHTML = `<strong>${date}</strong> - ${store} 
-      <button onclick='toggleMenu("${store}", this)'>顯示菜單</button>
-      <div id='menu-${store}' class='hidden'></div>`;
+      <button onclick='toggleMenu("${date}", "${store}")'>顯示/隱藏菜單</button>
+      <div id='menu-${date}' class='hidden'></div>`;
     container.appendChild(div);
   });
 }
 
-// 顯示或隱藏菜單
-async function toggleMenu(store, btn) {
-  const menuDiv = document.getElementById(`menu-${store}`);
+// 顯示菜單
+function toggleMenu(date, store) {
+  const menuDiv = document.getElementById(`menu-${date}`);
   if (!menuDiv.classList.contains('hidden')) {
     menuDiv.classList.add('hidden');
-    btn.textContent = '顯示菜單';
-    return;
-  }
-
-  let storesData = {};
-  try {
-    const res = await fetch("menu.json");
-    storesData = await res.json();
-  } catch {
-    alert("無法載入菜單資料！");
+    menuDiv.innerHTML = '';
     return;
   }
 
   const menu = storesData[store];
-  let html = "<table><tr><th>品項</th><th>價格</th></tr>";
+  let html = `<div><input type="text" id="user-${date}" placeholder="姓名/工號" />
+    <table><tr><th>品項</th><th>價格</th><th>備註</th><th>選取</th></tr>`;
   for (let item in menu) {
     if (typeof menu[item] === 'object') {
       for (let sub in menu[item]) {
-        html += `<tr><td>${item}（${sub}）</td><td>$${menu[item][sub]}</td></tr>`;
+        html += `<tr><td>${item}（${sub}）</td><td>${menu[item][sub]}</td>
+        <td><input type="text" placeholder="備註"></td>
+        <td><input type="radio" name="menu-${date}" value="${item}-${sub}" data-price="${menu[item][sub]}"></td></tr>`;
       }
     } else {
-      html += `<tr><td>${item}</td><td>$${menu[item]}</td></tr>`;
+      html += `<tr><td>${item}</td><td>${menu[item]}</td>
+      <td><input type="text" placeholder="備註"></td>
+      <td><input type="radio" name="menu-${date}" value="${item}" data-price="${menu[item]}"></td></tr>`;
     }
   }
-  html += "</table>";
-
+  html += `</table><button onclick='submitOrder("${date}", "${store}")'>送出</button></div>`;
   menuDiv.innerHTML = html;
   menuDiv.classList.remove('hidden');
-  btn.textContent = '隱藏菜單';
+}
+
+// 送出訂單
+function submitOrder(date, store) {
+  const sel = document.querySelector(`input[name='menu-${date}']:checked`);
+  const user = document.getElementById(`user-${date}`).value.trim();
+  const noteInput = sel ? sel.parentNode.previousElementSibling.firstElementChild.value.trim() : "";
+
+  if (!user || !sel) return alert("請填寫所有欄位！");
+  const item = sel.value;
+  const price = sel.getAttribute('data-price');
+  const note = noteInput || "";
+  const key = db.ref('orders/' + date).push().key;
+  db.ref('orders/' + date + '/' + key).set({ user, item, price, note, store });
+  alert("已送出訂單！");
+}
+
+// 統計表
+db.ref('orders').on('value', snapshot => {
+  const stats = document.getElementById('stats');
+  stats.innerHTML = '';
+  const data = snapshot.val();
+  if (!data) return stats.innerHTML = '尚無資料';
+
+  Object.entries(data).forEach(([date, orders]) => {
+    const div = document.createElement('div');
+    div.innerHTML = `<h4>${date}</h4>`;
+    const table = document.createElement('table');
+    table.innerHTML = "<tr><th>品項</th><th>人員</th><th>數量</th><th>單價</th><th>小計</th></tr>";
+
+    const byStore = {};
+    Object.entries(orders).forEach(([id, order]) => {
+      const { user, item, price, note = "", store, paid = false } = order;
+      const [itemName, size] = item.split("-");
+      const displayItem = size ? `${itemName}（${size}）` : itemName;
+      if (!byStore[store]) byStore[store] = {};
+      if (!byStore[store][displayItem]) byStore[store][displayItem] = [];
+      byStore[store][displayItem].push({ user, id, price, note, paid });
+    });
+
+    Object.entries(byStore).forEach(([store, items]) => {
+      const storeDiv = document.createElement('div');
+      storeDiv.innerHTML = `<h5>${store}</h5>`;
+      let storeTotal = 0, storePaid = 0, storeUnpaid = 0;
+      Object.entries(items).forEach(([item, users]) => {
+        let extra = 0;
+        users.forEach(u => {
+          const match = u.note.match(/加(\d+)元/);
+          if (match) extra = parseInt(match[1]);
+        });
+        const itemUnitPrice = parseInt(users[0].price) + extra;
+        const itemTotalPrice = itemUnitPrice * users.length;
+        storeTotal += itemTotalPrice;
+        users.forEach(u => {
+          if (u.paid) storePaid += itemUnitPrice;
+          else storeUnpaid += itemUnitPrice;
+        });
+        table.innerHTML += `<tr><td>${item}</td><td>${users.map(u => u.user).join(', ')}</td>
+          <td>${users.length}</td><td>$${itemUnitPrice}</td><td>$${itemTotalPrice}</td></tr>`;
+      });
+      table.innerHTML += `<tr><td colspan="5">總金額：$${storeTotal} ｜ 已付款：$${storePaid} ｜ 未付款：$${storeUnpaid}</td></tr>`;
+      storeDiv.appendChild(table);
+      div.appendChild(storeDiv);
+    });
+    stats.appendChild(div);
+  });
+});
+
+// 列印統計表
+function printStats() {
+  const printWindow = window.open('', '', 'width=800,height=600');
+  printWindow.document.write('<html><head><title>列印統計表</title>');
+  printWindow.document.write('<style>table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 4px 8px; }</style>');
+  printWindow.document.write('</head><body>');
+  printWindow.document.write(document.getElementById('stats').innerHTML);
+  printWindow.document.write('</body></html>');
+  printWindow.document.close();
+  printWindow.print();
 }
 </script>
-
 </body>
 </html>
