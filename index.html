@@ -79,10 +79,24 @@ async function loadStores() {
 }
 
 async function loadReminder() {
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0=星期日, 1=星期一...
+
   const snapThis = await db.ref('reminder/thisWeek').once('value');
-  thisWeekReminder = snapThis.val() || {};
+  let thisWeekReminderData = snapThis.val();
+
   const snapNext = await db.ref('reminder/nextWeek').once('value');
-  nextWeekReminder = snapNext.val() || {};
+  const nextWeekReminderData = snapNext.val() || {};
+
+  // 如果今天是星期一，且本週提醒沒有資料，就自動複製
+  if (dayOfWeek === 1 && (!thisWeekReminderData || Object.keys(thisWeekReminderData).length === 0)) {
+    await db.ref('reminder/thisWeek').set(nextWeekReminderData);
+    thisWeekReminderData = nextWeekReminderData;
+    console.log("已自動複製下週提醒到本週");
+  }
+
+  thisWeekReminder = thisWeekReminderData || {};
+  nextWeekReminder = nextWeekReminderData;
   renderReminder();
 }
 
