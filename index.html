@@ -67,7 +67,7 @@ window.addEventListener('load', () => {
 
 let menuData = {};
 let currentStore = "";
-let currentAddonPrice = { rice: 0, noodle: 0, spicy: 0 };
+let currentAddonPrice = { rice: 0, noodle: 0, spicy: 0, bigBowl: 0 };
 
 async function loadStores() {
   const res = await fetch("menu.json");
@@ -82,7 +82,7 @@ function loadStoreMenu() {
   const store = document.getElementById("selectStore").value;
   if (!store) return;
   currentStore = store;
-  currentAddonPrice = menuData[store].addonPrice || { rice: 0, noodle: 0, spicy: 0 };
+  currentAddonPrice = menuData[store].addonPrice || { rice: 0, noodle: 0, spicy: 0, bigBowl: 0 };
   document.getElementById("orders").style.display = "block";
   renderMenu();
   renderStats();
@@ -92,12 +92,12 @@ function renderMenu() {
   const menuDiv = document.getElementById("menuArea");
   const menu = menuData[currentStore].menu;
   let data = loadLocal();
-  let html = "<table><tr><th>品項</th><th>價格</th><th>數量</th><th>加飯</th><th>加麵</th><th>加辣</th></tr>";
+  let html = "<table><tr><th>品項</th><th>價格</th><th>數量</th><th>加飯</th><th>加麵</th><th>加辣</th><th>大碗</th></tr>";
 
   for (let item in menu) {
     const price = menu[item];
     const key = item;
-    const entry = data[key] || { qty: 0, rice: 0, noodle: 0, spicy: 0, price: price };
+    const entry = data[key] || { qty: 0, rice: 0, noodle: 0, spicy: 0, bigBowl: 0, price: price };
     html += `<tr>
       <td>${item}</td>
       <td>${price}</td>
@@ -105,6 +105,7 @@ function renderMenu() {
       <td><input type='number' min='0' value='${entry.rice}' onchange='update("${key}", ${price})' id='rice_${key}'></td>
       <td><input type='number' min='0' value='${entry.noodle}' onchange='update("${key}", ${price})' id='noodle_${key}'></td>
       <td><input type='number' min='0' value='${entry.spicy}' onchange='update("${key}", ${price})' id='spicy_${key}'></td>
+      <td><input type='number' min='0' value='${entry.bigBowl || 0}' onchange='update("${key}", ${price})' id='bigBowl_${key}' ${isSoupNoodle(item) ? "" : "disabled"}></td>
     </tr>`;
   }
 
@@ -112,18 +113,24 @@ function renderMenu() {
   menuDiv.innerHTML = html;
 }
 
+  function isSoupNoodle(itemName) {
+  const list = menuData[currentStore]?.soupOnlyBigBowl || [];
+  return list.includes(itemName);
+}
+  
 function update(key, price) {
   const qty = parseInt(document.getElementById(`qty_${key}`).value) || 0;
   const rice = parseInt(document.getElementById(`rice_${key}`).value) || 0;
   const noodle = parseInt(document.getElementById(`noodle_${key}`).value) || 0;
   const spicy = parseInt(document.getElementById(`spicy_${key}`).value) || 0;
+  const bigBowl = parseInt(document.getElementById(`bigBowl_${key}`)?.value || 0);
 
   let data = loadLocal();
 
   if (qty === 0 && rice === 0 && noodle === 0 && spicy === 0) {
     delete data[key];
   } else {
-    data[key] = { qty, rice, noodle, spicy, price };
+    data[key] = { qty, rice, noodle, spicy, bigBowl, price };
   }
 
   localStorage.setItem("bento_data", JSON.stringify(data));
@@ -139,13 +146,14 @@ function renderStats() {
   }
 
   let total = 0;
-  let table = "<table><tr><th>品項</th><th>數量</th><th>加飯</th><th>加麵</th><th>加辣</th><th>單價</th><th>小計</th></tr>";
+  let table = "<table><tr><th>品項</th><th>數量</th><th>加飯</th><th>加麵</th><th>加辣</th><th>大碗</th><th>單價</th><th>小計</th></tr>";
   for (let item in data) {
-    const { price, qty, rice, noodle, spicy } = data[item];
+    const { price, qty, rice, noodle, spicy, bigBowl = 0 } = data[item];
     const riceCost = rice * currentAddonPrice.rice;
     const noodleCost = noodle * currentAddonPrice.noodle;
     const spicyCost = spicy * currentAddonPrice.spicy;
-    const itemSubtotal = qty * price + riceCost + noodleCost + spicyCost;
+    const bigBowlCost = isSoupNoodle(item) ? bigBowl * (currentAddonPrice.bigBowl || 0) : 0;
+    const itemSubtotal = qty * price + riceCost + noodleCost + spicyCost + bigBowlCost;
     total += itemSubtotal;
 
     table += `<tr>
@@ -154,11 +162,12 @@ function renderStats() {
       <td>${rice}（$${riceCost}）</td>
       <td>${noodle}（$${noodleCost}）</td>
       <td>${spicy}（$${spicyCost}）</td>
+      <td>${bigBowl}（$${bigBowlCost}）</td>
       <td>$${price}</td>
       <td>$${itemSubtotal}</td>
     </tr>`;
   }
-  table += `<tr><td colspan='7'>總金額：$${total}</td></tr></table>
+  table += `<tr><td colspan='8'>總金額：$${total}</td></tr></table>
     <button class="action-btn" onclick='printStats()'>列印統計表</button>`;
   statsDiv.innerHTML = table;
 }
