@@ -12,8 +12,7 @@
       color: #000;
       margin: 0;
       padding: 0;
-      background: url('https://raw.githubusercontent.com/polo1364/order/refs/heads/main/FB5BBC50-D21A-4F57-AF32-ABE798E3ABA1.png') repeat;
-      background-size: 200px 200px;
+      background: #fdfdfd;
     }
     .container {
       max-width: 800px;
@@ -25,6 +24,7 @@
       border-radius: 4px;
       padding: 1em;
       margin-bottom: 1em;
+      border: 1px solid #ddd;
     }
     h2 { color: #b30000; margin-bottom: 0.5em; text-align: center; }
     table, th, td {
@@ -36,6 +36,7 @@
     }
     th { background: #eee; }
     .action-btn { display: inline-block; margin: 2px 0; }
+    input[type=number] { width: 60px; }
     @media (max-width: 600px) {
       h2 { font-size: 1.2em; }
       table, th, td { font-size: 0.9em; }
@@ -49,9 +50,9 @@
 </head>
 <body>
   <div class="container">
-    <h2>便當點餐系統</h2>
+    <h2>便當點餐系統（輸入數量樣式）</h2>
 
-    <div id="manualSelect" class="section">
+    <div class="section">
       <label>選擇日期：
         <input type="date" id="selectDate">
       </label>
@@ -76,127 +77,107 @@ async function loadStores() {
   const res = await fetch("menu.json");
   menuData = await res.json();
   storeList = Object.keys(menuData);
-  renderStoreOptions();
-}
-
-function renderStoreOptions() {
   const sel = document.getElementById("selectStore");
-  sel.innerHTML = `<option value="">請選擇</option>` +
-    storeList.map(s => `<option value="${s}">${s}</option>`).join("");
+  sel.innerHTML = "<option value=''>請選擇</option>" +
+    storeList.map(s => `<option value='${s}'>${s}</option>`).join("");
 }
 
-async function addOrderSection() {
+function addOrderSection() {
   const date = document.getElementById("selectDate").value;
   const store = document.getElementById("selectStore").value;
   if (!date || !store) return alert("請選擇日期與店家");
-
-  if (document.getElementById(`section_${date}`)) {
-    return alert("此日期已經顯示，可直接操作！");
+  if (document.getElementById("section_" + date)) {
+    alert("此日期已存在");
+    return;
   }
 
-  const section = document.createElement('div');
-  section.className = 'section';
-  section.id = `section_${date}`;
-  section.innerHTML = `<h4>${date}：${store}
-    <button class="action-btn" onclick="toggleMenu('${date}')">顯示/隱藏菜單</button></h4>
-    <div id="menu_${date}" style="display:none;"></div>
+  const section = document.createElement("div");
+  section.className = "section";
+  section.id = "section_" + date;
+  section.innerHTML = `<h4>${date}：${store}</h4>
+    <div id="menu_${date}"></div>
     <div id="stats_${date}"></div>`;
-  document.getElementById('orders').appendChild(section);
+  document.getElementById("orders").appendChild(section);
 
   renderMenu(date, store);
   listenOrderStats(date);
 }
 
 function renderMenu(date, store) {
-  const menuDiv = document.getElementById(`menu_${date}`);
-  let html = "<table><tr><th>品項</th><th>價格</th><th>選取</th></tr>";
+  const menuDiv = document.getElementById("menu_" + date);
   const menu = menuData[store];
+  let html = "<table><tr><th>品項</th><th>價格</th><th>數量</th></tr>";
+
   for (let item in menu) {
     const price = menu[item];
-    if (typeof price === 'object') {
+    if (typeof price === "object") {
       for (let sub in price) {
         html += `<tr><td>${item}（${sub}）</td><td>${price[sub]}</td>
-          <td><input type='radio' name='menu_${date}' value='${item}-${sub}' data-price='${price[sub]}'></td></tr>`;
+          <td><input type='number' min='0' value='0' onchange='updateOrder("${date}", "${item}-${sub}", ${price[sub]}, this.value)'></td></tr>`;
       }
     } else {
       html += `<tr><td>${item}</td><td>${price}</td>
-        <td><input type='radio' name='menu_${date}' value='${item}' data-price='${price}'></td></tr>`;
+        <td><input type='number' min='0' value='0' onchange='updateOrder("${date}", "${item}", ${price}, this.value)'></td></tr>`;
     }
   }
-  html += `<tr><td colspan="3"><button class="action-btn" onclick='submitOrder("${date}","${store}")'>送出</button></td></tr></table>`;
+
+  html += "</table>";
   menuDiv.innerHTML = html;
 }
 
-function submitOrder(date, store) {
-  const sel = document.querySelector(`input[name='menu_${date}']:checked`);
-  if (!store || !sel) return alert("請選擇品項！");
-  const item = sel.value;
-  const price = sel.getAttribute('data-price');
-  const key = db.ref('orders/' + date).push().key;
-  const user = `使用者-${Math.floor(Math.random() * 100000)}`;
-  db.ref('orders/' + date + '/' + key).set({ user, item, price });
-  alert("已送出！");
+function updateOrder(date, item, price, qty) {
+  const qtyNum = parseInt(qty);
+  const itemKey = item.replaceAll(".", "_");
+  const ref = db.ref("orders/" + date + "/" + itemKey);
+  if (qtyNum > 0) {
+    ref.set({ item, price, qty: qtyNum });
+  } else {
+    ref.remove();
+  }
 }
 
 function listenOrderStats(date) {
-  db.ref('orders/' + date).on('value', snap => {
+  db.ref("orders/" + date).on("value", snap => {
     const data = snap.val();
-    const statsDiv = document.getElementById(`stats_${date}`);
-    if (!data) { statsDiv.innerHTML = '尚無資料'; return; }
+    const statsDiv = document.getElementById("stats_" + date);
+    if (!data) {
+      statsDiv.innerHTML = "尚無資料";
+      return;
+    }
 
-    let table = "<table><tr><th>品項</th><th>數量</th><th>單價</th><th>小計</th></tr>";
     let total = 0;
-    const byItem = {};
-
-    for (let id in data) {
-      const { item, price } = data[id];
-      const [itemName, size] = item.split("-");
-      const displayItem = size ? `${itemName}（${size}）` : itemName;
-      if (!byItem[displayItem]) byItem[displayItem] = { count: 0, price: parseInt(price) };
-      byItem[displayItem].count++;
-    }
-
-    for (let item in byItem) {
-      const { count, price } = byItem[item];
-      const subtotal = count * price;
+    let table = "<table><tr><th>品項</th><th>數量</th><th>單價</th><th>小計</th></tr>";
+    for (let key in data) {
+      const { item, price, qty } = data[key];
+      const subtotal = qty * price;
       total += subtotal;
-      table += `<tr><td>${item}</td><td>${count}</td><td>$${price}</td><td>$${subtotal}</td></tr>`;
+      table += `<tr><td>${item}</td><td>${qty}</td><td>$${price}</td><td>$${subtotal}</td></tr>`;
     }
-
-    table += `<tr><td colspan="4">總金額：$${total}</td></tr></table>
-      <button class="action-btn print-btn" onclick='printSection("stats_${date}")'>列印統計表</button>`;
+    table += `<tr><td colspan='4'>總金額：$${total}</td></tr></table>
+      <button class="action-btn" onclick='printSection("stats_${date}")'>列印統計表</button>`;
     statsDiv.innerHTML = table;
   });
 }
 
-function toggleMenu(date) {
-  const div = document.getElementById(`menu_${date}`);
-  div.style.display = div.style.display === "none" ? "block" : "none";
-}
-
 function printSection(id) {
   const section = document.getElementById(id).parentElement;
-  const interactiveElements = section.querySelectorAll('button, input, select');
-  interactiveElements.forEach(el => { el.style.display = 'none'; });
-  const win = window.open('', '', 'width=800,height=600');
-  win.document.write('<html><head><title>列印統計表</title>');
-  win.document.write('<style>body { font-family: sans-serif; } h4 { margin-bottom: 0.5em; } table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 4px 8px; } th { background: #eee; }</style>');
-  win.document.write('</head><body>');
+  const inputs = section.querySelectorAll("input, button, select");
+  inputs.forEach(el => el.style.display = "none");
+  const win = window.open("", "", "width=800,height=600");
+  win.document.write("<html><head><title>列印統計表</title>");
+  win.document.write("<style>body{font-family:sans-serif;}table,th,td{border:1px solid #ccc;border-collapse:collapse;padding:4px 8px;}th{background:#eee;}</style>");
+  win.document.write("</head><body>");
   win.document.write(section.innerHTML);
-  win.document.write('</body></html>');
+  win.document.write("</body></html>");
   win.document.close();
   win.onload = () => {
     win.print();
-    win.onafterprint = () => {
-      win.close();
-      interactiveElements.forEach(el => { el.style.display = ''; });
-    };
+    win.onafterprint = () => win.close();
+    inputs.forEach(el => el.style.display = "");
   };
 }
 
-(async function() {
-  await loadStores();
-})();
+loadStores();
 </script>
 </body>
 </html>
