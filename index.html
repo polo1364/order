@@ -4,12 +4,9 @@
   <meta charset="UTF-8" />
   <title>便當點餐系統</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <style>
     body {
       font-family: "Microsoft JhengHei", sans-serif;
-      color: #000;
       margin: 0;
       padding: 0;
       background: #fdfdfd;
@@ -20,13 +17,16 @@
       padding: 1em;
     }
     .section {
-      background: rgba(255, 255, 255, 0.95);
-      border-radius: 4px;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 6px;
       padding: 1em;
       margin-bottom: 1em;
-      border: 1px solid #ddd;
     }
-    h2 { color: #b30000; margin-bottom: 0.5em; text-align: center; }
+    h2 {
+      color: #b30000;
+      text-align: center;
+    }
     table, th, td {
       border: 1px solid #ccc;
       border-collapse: collapse;
@@ -35,22 +35,20 @@
       width: 100%;
     }
     th { background: #eee; }
-    .action-btn { display: inline-block; margin: 2px 0; }
     input[type=number] { width: 60px; }
-    @media (max-width: 600px) {
-      h2 { font-size: 1.2em; }
-      table, th, td { font-size: 0.9em; }
+    .action-btn {
+      margin-top: 10px;
+      padding: 6px 10px;
     }
     @media print {
-      html, body { background: #fff !important; }
-      button, input, select { display: none !important; }
+      input, button, select { display: none !important; }
       .section { page-break-after: always; }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>便當點餐系統（輸入數量樣式）</h2>
+    <h2>便當點餐系統（本地即時儲存）</h2>
 
     <div class="section">
       <label>選擇日期：
@@ -66,10 +64,6 @@
   </div>
 
 <script>
-const firebaseConfig = { databaseURL: "https://bento-5bb36-default-rtdb.firebaseio.com/" };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
 let storeList = [];
 let menuData = {};
 
@@ -100,24 +94,28 @@ function addOrderSection() {
   document.getElementById("orders").appendChild(section);
 
   renderMenu(date, store);
-  listenOrderStats(date);
+  renderStats(date);
 }
 
 function renderMenu(date, store) {
   const menuDiv = document.getElementById("menu_" + date);
   const menu = menuData[store];
   let html = "<table><tr><th>品項</th><th>價格</th><th>數量</th></tr>";
+  const savedData = loadLocal(date);
 
   for (let item in menu) {
     const price = menu[item];
     if (typeof price === "object") {
       for (let sub in price) {
+        const key = `${item}-${sub}`;
+        const qty = savedData[key]?.qty || 0;
         html += `<tr><td>${item}（${sub}）</td><td>${price[sub]}</td>
-          <td><input type='number' min='0' value='0' onchange='updateOrder("${date}", "${item}-${sub}", ${price[sub]}, this.value)'></td></tr>`;
+          <td><input type='number' min='0' value='${qty}' onchange='updateLocal("${date}", "${key}", ${price[sub]}, this.value)'></td></tr>`;
       }
     } else {
+      const qty = savedData[item]?.qty || 0;
       html += `<tr><td>${item}</td><td>${price}</td>
-        <td><input type='number' min='0' value='0' onchange='updateOrder("${date}", "${item}", ${price}, this.value)'></td></tr>`;
+        <td><input type='number' min='0' value='${qty}' onchange='updateLocal("${date}", "${item}", ${price}, this.value)'></td></tr>`;
     }
   }
 
@@ -125,38 +123,41 @@ function renderMenu(date, store) {
   menuDiv.innerHTML = html;
 }
 
-function updateOrder(date, item, price, qty) {
-  const qtyNum = parseInt(qty);
-  const itemKey = item.replaceAll(".", "_");
-  const ref = db.ref("orders/" + date + "/" + itemKey);
-  if (qtyNum > 0) {
-    ref.set({ item, price, qty: qtyNum });
+function updateLocal(date, item, price, qty) {
+  let data = loadLocal(date);
+  if (parseInt(qty) > 0) {
+    data[item] = { price, qty: parseInt(qty) };
   } else {
-    ref.remove();
+    delete data[item];
   }
+  localStorage.setItem("bento_" + date, JSON.stringify(data));
+  renderStats(date);
 }
 
-function listenOrderStats(date) {
-  db.ref("orders/" + date).on("value", snap => {
-    const data = snap.val();
-    const statsDiv = document.getElementById("stats_" + date);
-    if (!data) {
-      statsDiv.innerHTML = "尚無資料";
-      return;
-    }
+function renderStats(date) {
+  const data = loadLocal(date);
+  const statsDiv = document.getElementById("stats_" + date);
+  if (!data || Object.keys(data).length === 0) {
+    statsDiv.innerHTML = "尚無資料";
+    return;
+  }
 
-    let total = 0;
-    let table = "<table><tr><th>品項</th><th>數量</th><th>單價</th><th>小計</th></tr>";
-    for (let key in data) {
-      const { item, price, qty } = data[key];
-      const subtotal = qty * price;
-      total += subtotal;
-      table += `<tr><td>${item}</td><td>${qty}</td><td>$${price}</td><td>$${subtotal}</td></tr>`;
-    }
-    table += `<tr><td colspan='4'>總金額：$${total}</td></tr></table>
-      <button class="action-btn" onclick='printSection("stats_${date}")'>列印統計表</button>`;
-    statsDiv.innerHTML = table;
-  });
+  let total = 0;
+  let table = "<table><tr><th>品項</th><th>數量</th><th>單價</th><th>小計</th></tr>";
+  for (let item in data) {
+    const { price, qty } = data[item];
+    const subtotal = qty * price;
+    total += subtotal;
+    table += `<tr><td>${item}</td><td>${qty}</td><td>$${price}</td><td>$${subtotal}</td></tr>`;
+  }
+  table += `<tr><td colspan='4'>總金額：$${total}</td></tr></table>
+    <button class="action-btn" onclick='printSection("stats_${date}")'>列印統計表</button>`;
+  statsDiv.innerHTML = table;
+}
+
+function loadLocal(date) {
+  const json = localStorage.getItem("bento_" + date);
+  return json ? JSON.parse(json) : {};
 }
 
 function printSection(id) {
