@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>便當統計表</title>
+  <title>便當統計表 - 大瑞科技</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body {
@@ -40,23 +40,34 @@
       margin-top: 10px;
       padding: 6px 10px;
     }
-    .footer-info {
-      margin-top: 20px;
-      white-space: pre-line;
-      font-size: 0.9em;
-      color: #444;
-    }
     .menu-table { display: block; }
+    .print-footer {
+      display: none;
+      margin-top: 40px;
+      font-size: 20px;
+      line-height: 1.8;
+      text-align: center;
+    }
+
     @media print {
-      .menu-table { display: none !important; }
-      input, button, select { display: none !important; }
-      .section { page-break-after: always; }
+      .menu-table, input, button, select, .section label { display: none !important; }
+      .print-footer { display: block !important; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 210mm;
+        height: 297mm;
+      }
+      body {
+        zoom: 100%;
+        -webkit-print-color-adjust: exact;
+      }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>便當點餐系統</h2>
+    <h2>便當點餐系統（大瑞科技）</h2>
 
     <div class="section">
       <label>選擇店家：
@@ -68,6 +79,12 @@
       <div class="menu-table" id="menuArea"></div>
       <div id="statsArea"></div>
     </div>
+  </div>
+
+  <div class="print-footer">
+    <div>大瑞科技</div>
+    <div>地址:高雄市大寮區鳳林二路532號</div>
+    <div>電話:(07)7871875</div>
   </div>
 
 <script>
@@ -151,11 +168,6 @@ function renderStats() {
   }
   table += `<tr><td colspan='4'>總金額：$${total}</td></tr></table>
     <button class="action-btn" onclick='printStats()'>列印統計表</button>`;
-  table += `<div class="footer-info">
-大瑞科技
-地址:高雄市大寮區鳳林二路532號
-電話:(07)7871875
-</div>`;
   statsDiv.innerHTML = table;
 }
 
@@ -165,20 +177,8 @@ function loadLocal() {
 }
 
 function printStats() {
-  const statsHtml = document.getElementById("statsArea").innerHTML;
-  const win = window.open("", "", "width=800,height=600");
-  win.document.write("<html><head><title>列印統計表</title>");
-  win.document.write("<style>body{font-family:sans-serif;}table,th,td{border:1px solid #ccc;border-collapse:collapse;padding:4px 8px;}th{background:#eee;}</style>");
-  win.document.write("</head><body>");
-  win.document.write(statsHtml);
-  win.document.write("</body></html>");
-  win.document.close();
-  win.onload = () => {
-    win.print();
-    win.onafterprint = () => win.close();
-  };
+  window.print();
 }
-
 loadStores();
 </script>
 </body>
