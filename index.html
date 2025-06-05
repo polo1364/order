@@ -96,6 +96,8 @@ function renderMenu() {
 
   for (let item in menu) {
     const price = menu[item];
+    if (typeof price !== "number") continue; // 👉 跳過複合價格（避免顯示 [object Object]）
+
     const key = item;
     const entry = data[key] || { qty: 0, rice: 0, noodle: 0, spicy: 0, bigBowl: 0, price: price };
     html += `<tr>
@@ -114,6 +116,7 @@ function renderMenu() {
   html += "</table>";
   menuDiv.innerHTML = html;
 }
+
 
 function update(key, price) {
   const qty = parseInt(document.getElementById(`qty_${key}`).value) || 0;
