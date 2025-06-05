@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>便當統計系統 - 大瑞科技</title>
+  <title>便當統計系統</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body { font-family: "Microsoft JhengHei", sans-serif; margin: 0; padding: 0; background: #f9f9f9; }
@@ -40,26 +40,22 @@
 </head>
 <body>
   <div class="container">
-    <h2>便當點餐系統（大瑞科技）</h2>
-
+    <h2>便當點餐系統</h2>
     <div class="section">
       <label>選擇店家：
         <select id="selectStore" onchange="loadStoreMenu()"></select>
       </label>
     </div>
-
     <div id="orders" class="section" style="display:none;">
       <div class="menu-table" id="menuArea"></div>
       <div id="statsArea"></div>
     </div>
   </div>
-
   <div class="print-footer">
     <div>大瑞科技</div>
     <div>地址:高雄市大寮區鳳林二路532號</div>
     <div>電話:(07)7871875</div>
   </div>
-
 <script>
 let menuData = {};
 let currentStore = "";
@@ -96,16 +92,11 @@ function renderMenu() {
 
   for (let item in menu) {
     const price = menu[item];
-
-    // 單一價格
     if (typeof price === "number") {
       const key = item;
       const entry = data[key] || { qty: 0, rice: 0, noodle: 0, spicy: 0, bigBowl: 0, price: price };
       html += renderRow(key, item, price, entry);
-    }
-
-    // 複合價格（如：小/大）
-    else if (typeof price === "object") {
+    } else if (typeof price === "object") {
       for (let sub in price) {
         const subKey = `${item} - ${sub}`;
         const subPrice = price[sub];
@@ -137,25 +128,22 @@ function update(key, price) {
   const noodle = parseInt(document.getElementById(`noodle_${key}`).value) || 0;
   const spicy = parseInt(document.getElementById(`spicy_${key}`).value) || 0;
   const bigBowl = hideBigBowl ? 0 : parseInt(document.getElementById(`bigBowl_${key}`)?.value || 0);
-
   let data = loadLocal();
-
   if (qty === 0 && rice === 0 && noodle === 0 && spicy === 0 && bigBowl === 0) {
     delete data[key];
   } else {
     data[key] = { qty, rice, noodle, spicy, bigBowl, price };
   }
-
   localStorage.setItem("bento_data", JSON.stringify(data));
   renderStats();
 }
 
 function isSoupNoodle(itemName) {
   const list = menuData[currentStore]?.soupOnlyBigBowl || [];
-  const mainName = itemName.split(" - ")[0];  // 移除 - 大、小 等修飾
+  const mainName = itemName.split(" - ")[0];
   return list.includes(mainName);
 }
-  
+
 function renderStats() {
   const data = loadLocal();
   const statsDiv = document.getElementById("statsArea");
@@ -166,22 +154,17 @@ function renderStats() {
 
   let total = 0;
   let table = "<table><tr><th>品項</th><th>數量</th><th>加飯</th><th>加麵</th><th>加辣</th><th>大碗</th><th>單價</th><th>小計</th></tr>";
-
   for (let item in data) {
     const { price, qty, rice, noodle, spicy, bigBowl = 0 } = data[item];
     const riceCost = rice * (currentAddonPrice.rice || 0);
     const noodleCost = noodle * (currentAddonPrice.noodle || 0);
     const spicyCost = spicy * (currentAddonPrice.spicy || 0);
-    
-    // 🔧 修正大碗金額安全判斷（避免 NaN）
     let bigBowlCost = 0;
-if (isSoupNoodle(item) && !isNaN(currentAddonPrice.bigBowl)) {
-  bigBowlCost = bigBowl * currentAddonPrice.bigBowl;
-}
-
+    if (isSoupNoodle(item) && !isNaN(currentAddonPrice.bigBowl)) {
+      bigBowlCost = bigBowl * currentAddonPrice.bigBowl;
+    }
     const itemSubtotal = qty * price + riceCost + noodleCost + spicyCost + bigBowlCost;
     total += itemSubtotal;
-
     table += `<tr>
       <td>${item}</td>
       <td>${qty}</td>
@@ -195,8 +178,16 @@ if (isSoupNoodle(item) && !isNaN(currentAddonPrice.bigBowl)) {
   }
 
   table += `<tr><td colspan='8'>總金額：$${total}</td></tr></table>
-    <button class="action-btn" onclick='printStats()'>列印統計表</button>`;
+    <button class="action-btn" onclick='printStats()'>列印統計表</button>
+    <button class="action-btn" onclick='clearStats()'>清除統計資料</button>`;
+
   statsDiv.innerHTML = table;
+}
+
+function clearStats() {
+  localStorage.removeItem("bento_data");
+  renderMenu();
+  renderStats();
 }
 
 function loadLocal() {
