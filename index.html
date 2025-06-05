@@ -172,7 +172,7 @@ function renderStats() {
   }
 
   let total = 0;
-  let table = "<table><tr><th>品項</th><th>數量</th><th>加飯</th><th>加麵</th><th>加辣</th><th>大碗</th><th>單價</th><th>小計</th></tr>";
+  let table = "<table><tr><th>品項</th><th>數量</th><th>單價</th><th>加料</th><th>小計</th></tr>";
 
   for (let item in data) {
     const { price, qty, rice, noodle, spicy, bigBowl = 0 } = data[item];
@@ -187,19 +187,23 @@ function renderStats() {
     const itemSubtotal = qty * price + riceCost + noodleCost + spicyCost + bigBowlCost;
     total += itemSubtotal;
 
+    // 建立加料說明文字
+    const addons = [];
+    if (rice > 0) addons.push(`加飯 x${rice}（$${riceCost}）`);
+    if (noodle > 0) addons.push(`加麵 x${noodle}（$${noodleCost}）`);
+    if (spicy > 0) addons.push(`加辣 x${spicy}（$${spicyCost}）`);
+    if (bigBowl > 0) addons.push(`大碗 x${bigBowl}（$${bigBowlCost}）`);
+
     table += `<tr>
       <td>${item}</td>
       <td>${qty}</td>
-      <td>${rice}（$${riceCost}）</td>
-      <td>${noodle}（$${noodleCost}）</td>
-      <td>${spicy}（$${spicyCost}）</td>
-      <td>${bigBowl}（$${bigBowlCost}）</td>
       <td>$${price}</td>
+      <td>${addons.join("<br>") || "-"}</td>
       <td>$${itemSubtotal}</td>
     </tr>`;
   }
 
-  table += `<tr><td colspan='8'>總金額：$${total}</td></tr></table>`;
+  table += `<tr><td colspan='5'>總金額：$${total}</td></tr></table>`;
   statsDiv.innerHTML = table;
 }
 
