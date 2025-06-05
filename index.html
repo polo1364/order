@@ -127,7 +127,7 @@ function renderRow(key, label, price, entry) {
     <td><input type='number' min='0' value='${entry.rice}' onchange='update("${key}", ${price})' id='rice_${key}'></td>
     <td><input type='number' min='0' value='${entry.noodle}' onchange='update("${key}", ${price})' id='noodle_${key}'></td>
     <td><input type='number' min='0' value='${entry.spicy}' onchange='update("${key}", ${price})' id='spicy_${key}'></td>
-    ${!hideBigBowl ? `<td><input type='number' min='0' value='${entry.bigBowl || 0}' onchange='update("${key}", ${price})' id='bigBowl_${key}'></td>` : ""}
+    ${(!hideBigBowl && isSoupNoodle(label)) ? `<td><input type='number' min='0' value='${entry.bigBowl || 0}' onchange='update("${key}", ${price})' id='bigBowl_${key}'></td>` : "<td></td>"}
   </tr>`;
 }
 
@@ -150,6 +150,12 @@ function update(key, price) {
   renderStats();
 }
 
+function isSoupNoodle(itemName) {
+  const list = menuData[currentStore]?.soupOnlyBigBowl || [];
+  const mainName = itemName.split(" - ")[0];  // 移除 - 大、小 等修飾
+  return list.includes(mainName);
+}
+  
 function renderStats() {
   const data = loadLocal();
   const statsDiv = document.getElementById("statsArea");
@@ -159,16 +165,20 @@ function renderStats() {
   }
 
   let total = 0;
-  let table = "<table><tr><th>品項</th><th>數量</th><th>加飯</th><th>加麵</th><th>加辣</th>";
-  if (!hideBigBowl) table += "<th>大碗</th>";
-  table += "<th>單價</th><th>小計</th></tr>";
+  let table = "<table><tr><th>品項</th><th>數量</th><th>加飯</th><th>加麵</th><th>加辣</th><th>大碗</th><th>單價</th><th>小計</th></tr>";
 
   for (let item in data) {
     const { price, qty, rice, noodle, spicy, bigBowl = 0 } = data[item];
-    const riceCost = rice * currentAddonPrice.rice;
-    const noodleCost = noodle * currentAddonPrice.noodle;
-    const spicyCost = spicy * currentAddonPrice.spicy;
-    const bigBowlCost = hideBigBowl ? 0 : bigBowl * currentAddonPrice.bigBowl;
+    const riceCost = rice * (currentAddonPrice.rice || 0);
+    const noodleCost = noodle * (currentAddonPrice.noodle || 0);
+    const spicyCost = spicy * (currentAddonPrice.spicy || 0);
+    
+    // 🔧 修正大碗金額安全判斷（避免 NaN）
+    let bigBowlCost = 0;
+if (isSoupNoodle(item) && !isNaN(currentAddonPrice.bigBowl)) {
+  bigBowlCost = bigBowl * currentAddonPrice.bigBowl;
+}
+
     const itemSubtotal = qty * price + riceCost + noodleCost + spicyCost + bigBowlCost;
     total += itemSubtotal;
 
@@ -177,13 +187,14 @@ function renderStats() {
       <td>${qty}</td>
       <td>${rice}（$${riceCost}）</td>
       <td>${noodle}（$${noodleCost}）</td>
-      <td>${spicy}（$${spicyCost}）</td>`;
-    if (!hideBigBowl) {
-      table += `<td>${bigBowl}（$${bigBowlCost}）</td>`;
-    }
-    table += `<td>$${price}</td><td>$${itemSubtotal}</td></tr>`;
+      <td>${spicy}（$${spicyCost}）</td>
+      <td>${bigBowl}（$${bigBowlCost}）</td>
+      <td>$${price}</td>
+      <td>$${itemSubtotal}</td>
+    </tr>`;
   }
-  table += `<tr><td colspan='${hideBigBowl ? 7 : 8}'>總金額：$${total}</td></tr></table>
+
+  table += `<tr><td colspan='8'>總金額：$${total}</td></tr></table>
     <button class="action-btn" onclick='printStats()'>列印統計表</button>`;
   statsDiv.innerHTML = table;
 }
