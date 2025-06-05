@@ -2,14 +2,14 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>便當點餐系統</title>
+  <title>便當統計表</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body {
       font-family: "Microsoft JhengHei", sans-serif;
+      background: #fdfdfd;
       margin: 0;
       padding: 0;
-      background: #fdfdfd;
     }
     .container {
       max-width: 800px;
@@ -40,7 +40,15 @@
       margin-top: 10px;
       padding: 6px 10px;
     }
+    .footer-info {
+      margin-top: 20px;
+      white-space: pre-line;
+      font-size: 0.9em;
+      color: #444;
+    }
+    .menu-table { display: block; }
     @media print {
+      .menu-table { display: none !important; }
       input, button, select { display: none !important; }
       .section { page-break-after: always; }
     }
@@ -48,74 +56,65 @@
 </head>
 <body>
   <div class="container">
-    <h2>便當點餐系統（本地即時儲存）</h2>
+    <h2>便當點餐系統</h2>
 
     <div class="section">
-      <label>選擇日期：
-        <input type="date" id="selectDate">
-      </label>
       <label>選擇店家：
-        <select id="selectStore"></select>
+        <select id="selectStore" onchange="loadStoreMenu()"></select>
       </label>
-      <button class="action-btn" onclick="addOrderSection()">加入</button>
     </div>
 
-    <div id="orders"></div>
+    <div id="orders" class="section" style="display:none;">
+      <div class="menu-table" id="menuArea"></div>
+      <div id="statsArea"></div>
+    </div>
   </div>
 
 <script>
-let storeList = [];
+window.addEventListener('load', () => {
+  localStorage.removeItem("bento_data");
+});
+
 let menuData = {};
+let currentStore = "";
 
 async function loadStores() {
   const res = await fetch("menu.json");
   menuData = await res.json();
-  storeList = Object.keys(menuData);
+  const storeList = Object.keys(menuData);
   const sel = document.getElementById("selectStore");
   sel.innerHTML = "<option value=''>請選擇</option>" +
     storeList.map(s => `<option value='${s}'>${s}</option>`).join("");
 }
 
-function addOrderSection() {
-  const date = document.getElementById("selectDate").value;
+function loadStoreMenu() {
   const store = document.getElementById("selectStore").value;
-  if (!date || !store) return alert("請選擇日期與店家");
-  if (document.getElementById("section_" + date)) {
-    alert("此日期已存在");
-    return;
-  }
-
-  const section = document.createElement("div");
-  section.className = "section";
-  section.id = "section_" + date;
-  section.innerHTML = `<h4>${date}：${store}</h4>
-    <div id="menu_${date}"></div>
-    <div id="stats_${date}"></div>`;
-  document.getElementById("orders").appendChild(section);
-
-  renderMenu(date, store);
-  renderStats(date);
+  if (!store) return;
+  currentStore = store;
+  document.getElementById("orders").style.display = "block";
+  renderMenu();
+  renderStats();
 }
 
-function renderMenu(date, store) {
-  const menuDiv = document.getElementById("menu_" + date);
-  const menu = menuData[store];
+function renderMenu() {
+  const menuDiv = document.getElementById("menuArea");
+  const menu = menuData[currentStore];
+  let data = loadLocal();
   let html = "<table><tr><th>品項</th><th>價格</th><th>數量</th></tr>";
-  const savedData = loadLocal(date);
 
   for (let item in menu) {
     const price = menu[item];
     if (typeof price === "object") {
       for (let sub in price) {
         const key = `${item}-${sub}`;
-        const qty = savedData[key]?.qty || 0;
+        const qty = data[key]?.qty || 0;
         html += `<tr><td>${item}（${sub}）</td><td>${price[sub]}</td>
-          <td><input type='number' min='0' value='${qty}' onchange='updateLocal("${date}", "${key}", ${price[sub]}, this.value)'></td></tr>`;
+          <td><input type='number' min='0' value='${qty}' onchange='updateLocal("${key}", ${price[sub]}, this.value)'></td></tr>`;
       }
     } else {
-      const qty = savedData[item]?.qty || 0;
+      const qty = data[item]?.qty || 0;
       html += `<tr><td>${item}</td><td>${price}</td>
-        <td><input type='number' min='0' value='${qty}' onchange='updateLocal("${date}", "${item}", ${price}, this.value)'></td></tr>`;
+        <td><input type='number' min='0' value='${qty}' onchange='updateLocal("${item}", ${price}, this.value)'></td></tr>`;
     }
   }
 
@@ -123,20 +122,20 @@ function renderMenu(date, store) {
   menuDiv.innerHTML = html;
 }
 
-function updateLocal(date, item, price, qty) {
-  let data = loadLocal(date);
+function updateLocal(item, price, qty) {
+  let data = loadLocal();
   if (parseInt(qty) > 0) {
     data[item] = { price, qty: parseInt(qty) };
   } else {
     delete data[item];
   }
-  localStorage.setItem("bento_" + date, JSON.stringify(data));
-  renderStats(date);
+  localStorage.setItem("bento_data", JSON.stringify(data));
+  renderStats();
 }
 
-function renderStats(date) {
-  const data = loadLocal(date);
-  const statsDiv = document.getElementById("stats_" + date);
+function renderStats() {
+  const data = loadLocal();
+  const statsDiv = document.getElementById("statsArea");
   if (!data || Object.keys(data).length === 0) {
     statsDiv.innerHTML = "尚無資料";
     return;
@@ -151,30 +150,32 @@ function renderStats(date) {
     table += `<tr><td>${item}</td><td>${qty}</td><td>$${price}</td><td>$${subtotal}</td></tr>`;
   }
   table += `<tr><td colspan='4'>總金額：$${total}</td></tr></table>
-    <button class="action-btn" onclick='printSection("stats_${date}")'>列印統計表</button>`;
+    <button class="action-btn" onclick='printStats()'>列印統計表</button>`;
+  table += `<div class="footer-info">
+大瑞科技
+地址:高雄市大寮區鳳林二路532號
+電話:(07)7871875
+</div>`;
   statsDiv.innerHTML = table;
 }
 
-function loadLocal(date) {
-  const json = localStorage.getItem("bento_" + date);
+function loadLocal() {
+  const json = localStorage.getItem("bento_data");
   return json ? JSON.parse(json) : {};
 }
 
-function printSection(id) {
-  const section = document.getElementById(id).parentElement;
-  const inputs = section.querySelectorAll("input, button, select");
-  inputs.forEach(el => el.style.display = "none");
+function printStats() {
+  const statsHtml = document.getElementById("statsArea").innerHTML;
   const win = window.open("", "", "width=800,height=600");
   win.document.write("<html><head><title>列印統計表</title>");
   win.document.write("<style>body{font-family:sans-serif;}table,th,td{border:1px solid #ccc;border-collapse:collapse;padding:4px 8px;}th{background:#eee;}</style>");
   win.document.write("</head><body>");
-  win.document.write(section.innerHTML);
+  win.document.write(statsHtml);
   win.document.write("</body></html>");
   win.document.close();
   win.onload = () => {
     win.print();
     win.onafterprint = () => win.close();
-    inputs.forEach(el => el.style.display = "");
   };
 }
 
