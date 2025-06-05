@@ -12,7 +12,7 @@
       padding: 0;
     }
     .container {
-      max-width: 800px;
+      max-width: 1000px;
       margin: auto;
       padding: 1em;
     }
@@ -30,12 +30,14 @@
     table, th, td {
       border: 1px solid #ccc;
       border-collapse: collapse;
-      padding: 4px 8px;
+      padding: 4px 6px;
       background: #fff;
-      width: 100%;
+      text-align: center;
     }
     th { background: #eee; }
-    input[type=number] { width: 60px; }
+    input[type=number] {
+      width: 60px;
+    }
     .action-btn {
       margin-top: 10px;
       padding: 6px 10px;
@@ -48,7 +50,6 @@
       line-height: 1.8;
       text-align: center;
     }
-
     @media print {
       .menu-table, input, button, select, .section label { display: none !important; }
       .print-footer { display: block !important; }
@@ -117,21 +118,31 @@ function renderMenu() {
   const menuDiv = document.getElementById("menuArea");
   const menu = menuData[currentStore];
   let data = loadLocal();
-  let html = "<table><tr><th>品項</th><th>價格</th><th>數量</th></tr>";
+  let html = "<table><tr><th>品項</th><th>價格</th><th>數量</th><th>加飯</th><th>加麵</th><th>加辣</th></tr>";
 
   for (let item in menu) {
     const price = menu[item];
     if (typeof price === "object") {
       for (let sub in price) {
-        const key = `${item}-${sub}`;
-        const qty = data[key]?.qty || 0;
-        html += `<tr><td>${item}（${sub}）</td><td>${price[sub]}</td>
-          <td><input type='number' min='0' value='${qty}' onchange='updateLocal("${key}", ${price[sub]}, this.value)'></td></tr>`;
+        const baseName = `${item}（${sub}）`;
+        const key = baseName;
+        const entry = data[key] || {};
+        html += `<tr><td>${baseName}</td><td>${price[sub]}</td>
+          <td><input type='number' min='0' value='${entry.qty || 0}' onchange='update("${key}", ${price[sub]})' id='qty_${key}'></td>
+          <td><input type='checkbox' ${entry.rice ? "checked" : ""} onchange='update("${key}", ${price[sub]})' id='rice_${key}'></td>
+          <td><input type='checkbox' ${entry.noodle ? "checked" : ""} onchange='update("${key}", ${price[sub]})' id='noodle_${key}'></td>
+          <td><input type='checkbox' ${entry.spicy ? "checked" : ""} onchange='update("${key}", ${price[sub]})' id='spicy_${key}'></td>
+          </tr>`;
       }
     } else {
-      const qty = data[item]?.qty || 0;
+      const key = item;
+      const entry = data[key] || {};
       html += `<tr><td>${item}</td><td>${price}</td>
-        <td><input type='number' min='0' value='${qty}' onchange='updateLocal("${item}", ${price}, this.value)'></td></tr>`;
+        <td><input type='number' min='0' value='${entry.qty || 0}' onchange='update("${key}", ${price})' id='qty_${key}'></td>
+        <td><input type='checkbox' ${entry.rice ? "checked" : ""} onchange='update("${key}", ${price})' id='rice_${key}'></td>
+        <td><input type='checkbox' ${entry.noodle ? "checked" : ""} onchange='update("${key}", ${price})' id='noodle_${key}'></td>
+        <td><input type='checkbox' ${entry.spicy ? "checked" : ""} onchange='update("${key}", ${price})' id='spicy_${key}'></td>
+        </tr>`;
     }
   }
 
@@ -139,13 +150,28 @@ function renderMenu() {
   menuDiv.innerHTML = html;
 }
 
-function updateLocal(item, price, qty) {
+function update(key, price) {
+  const qty = parseInt(document.getElementById(`qty_${key}`).value) || 0;
+  const rice = document.getElementById(`rice_${key}`).checked;
+  const noodle = document.getElementById(`noodle_${key}`).checked;
+  const spicy = document.getElementById(`spicy_${key}`).checked;
   let data = loadLocal();
-  if (parseInt(qty) > 0) {
-    data[item] = { price, qty: parseInt(qty) };
+
+  if (qty === 0) {
+    for (let k in data) {
+      if (k.startsWith(key + "｜")) {
+        delete data[k];
+      }
+    }
   } else {
-    delete data[item];
+    const additions = [];
+    if (rice) additions.push("加飯");
+    if (noodle) additions.push("加麵");
+    if (spicy) additions.push("加辣");
+    const displayName = additions.length ? `${key}（${additions.join("、")}）` : key;
+    data[displayName] = { qty, price };
   }
+
   localStorage.setItem("bento_data", JSON.stringify(data));
   renderStats();
 }
@@ -179,6 +205,7 @@ function loadLocal() {
 function printStats() {
   window.print();
 }
+
 loadStores();
 </script>
 </body>
