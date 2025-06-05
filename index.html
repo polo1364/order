@@ -96,27 +96,40 @@ function renderMenu() {
 
   for (let item in menu) {
     const price = menu[item];
-    if (typeof price !== "number") continue; // 👉 跳過複合價格（避免顯示 [object Object]）
 
-    const key = item;
-    const entry = data[key] || { qty: 0, rice: 0, noodle: 0, spicy: 0, bigBowl: 0, price: price };
-    html += `<tr>
-      <td>${item}</td>
-      <td>${price}</td>
-      <td><input type='number' min='0' value='${entry.qty}' onchange='update("${key}", ${price})' id='qty_${key}'></td>
-      <td><input type='number' min='0' value='${entry.rice}' onchange='update("${key}", ${price})' id='rice_${key}'></td>
-      <td><input type='number' min='0' value='${entry.noodle}' onchange='update("${key}", ${price})' id='noodle_${key}'></td>
-      <td><input type='number' min='0' value='${entry.spicy}' onchange='update("${key}", ${price})' id='spicy_${key}'></td>`;
-    if (!hideBigBowl) {
-      html += `<td><input type='number' min='0' value='${entry.bigBowl || 0}' onchange='update("${key}", ${price})' id='bigBowl_${key}'></td>`;
+    // 單一價格
+    if (typeof price === "number") {
+      const key = item;
+      const entry = data[key] || { qty: 0, rice: 0, noodle: 0, spicy: 0, bigBowl: 0, price: price };
+      html += renderRow(key, item, price, entry);
     }
-    html += "</tr>";
+
+    // 複合價格（如：小/大）
+    else if (typeof price === "object") {
+      for (let sub in price) {
+        const subKey = `${item} - ${sub}`;
+        const subPrice = price[sub];
+        const entry = data[subKey] || { qty: 0, rice: 0, noodle: 0, spicy: 0, bigBowl: 0, price: subPrice };
+        html += renderRow(subKey, `${item}（${sub}）`, subPrice, entry);
+      }
+    }
   }
 
   html += "</table>";
   menuDiv.innerHTML = html;
 }
 
+function renderRow(key, label, price, entry) {
+  return `<tr>
+    <td>${label}</td>
+    <td>${price}</td>
+    <td><input type='number' min='0' value='${entry.qty}' onchange='update("${key}", ${price})' id='qty_${key}'></td>
+    <td><input type='number' min='0' value='${entry.rice}' onchange='update("${key}", ${price})' id='rice_${key}'></td>
+    <td><input type='number' min='0' value='${entry.noodle}' onchange='update("${key}", ${price})' id='noodle_${key}'></td>
+    <td><input type='number' min='0' value='${entry.spicy}' onchange='update("${key}", ${price})' id='spicy_${key}'></td>
+    ${!hideBigBowl ? `<td><input type='number' min='0' value='${entry.bigBowl || 0}' onchange='update("${key}", ${price})' id='bigBowl_${key}'></td>` : ""}
+  </tr>`;
+}
 
 function update(key, price) {
   const qty = parseInt(document.getElementById(`qty_${key}`).value) || 0;
