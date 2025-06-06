@@ -168,7 +168,7 @@ function renderStats() {
   }
 
   let total = 0;
-  let table = "<table><tr><th>品項</th><th>數量</th><th>單價</th><th>加料</th><th>小計</th></tr>";
+  let table = "<table><tr><th>品項</th><th>數量</th><th>單價</th><th>備註</th><th>小計</th></tr>";
 
   for (let item in data) {
     const { price, qty, rice, noodle, spicy, bigBowl = 0, lessRice = 0, extraMain = "" } = data[item];
