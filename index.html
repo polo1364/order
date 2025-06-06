@@ -135,6 +135,55 @@ const extraMainOptions = {
   }
 };
 
+fetch('menu.json')
+  .then(response => response.json())
+  .then(data => {
+    menuData = data;
+    loadStores();
+  })
+  .catch(error => console.error('載入 menu.json 失敗', error));
+
+function loadStores() {
+  const select = document.getElementById('selectStore');
+  select.innerHTML = '<option value="">請選擇</option>';
+  for (let store in menuData) {
+    const opt = document.createElement('option');
+    opt.value = store;
+    opt.textContent = store;
+    select.appendChild(opt);
+  }
+}
+
+function loadStoreMenu() {
+  const store = document.getElementById('selectStore').value;
+  currentStore = store;
+  document.getElementById('currentStoreName').style.display = 'block';
+  document.getElementById('currentStoreName').textContent = store;
+  document.getElementById('printStoreName').textContent = store;
+  document.getElementById('orders').style.display = 'block';
+  const menuArea = document.getElementById('menuArea');
+  const storeData = menuData[store];
+  currentAddonPrice = storeData.addonPrice || {};
+  hideBigBowl = !Object.values(storeData.menu).some(i => typeof i === 'object');
+  let html = '<table><tr><th>品項</th><th>單價</th><th>數量</th><th>少飯</th><th>加飯</th><th>加麵</th><th>加辣</th><th>加大</th>';
+  if (extraMainOptions[store]?.enable) html += '<th>' + extraMainOptions[store].label + '</th>';
+  html += '</tr>';
+  for (let item in storeData.menu) {
+    const val = storeData.menu[item];
+    if (typeof val === 'number') {
+      html += renderRow(item, item, val, {});
+    } else {
+      for (let size in val) {
+        const key = `${item}(${size})`;
+        html += renderRow(key, key, val[size], {});
+      }
+    }
+  }
+  html += '</table>';
+  menuArea.innerHTML = html;
+  renderStats();
+}
+
 function renderRow(key, label, price, entry) {
   return `<tr>
     <td>${label}</td>
