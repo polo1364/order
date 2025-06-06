@@ -101,9 +101,9 @@ function renderMenu() {
   const menuDiv = document.getElementById("menuArea");
   const menu = menuData[currentStore].menu;
   let data = loadLocal();
-  let html = "<table><tr><th>品項</th><th>價格</th><th>數量</th><th>加飯</th><th>加麵</th><th>加辣</th>";
-  if (!hideBigBowl) html += "<th>大碗</th>";
-  html += "<th>少飯</th></tr>";
+  let html = "<table><tr><th>品項</th><th>價格</th><th>數量</th><th>少飯</th><th>加飯</th><th>加麵</th><th>加辣</th>";
+  if (!hideBigBowl) html += "<th>加大</th>";
+  html += "</tr>";
 
   for (let item in menu) {
     const price = menu[item];
@@ -130,21 +130,21 @@ function renderRow(key, label, price, entry) {
     <td>${label}</td>
     <td>${price}</td>
     <td><input type='number' min='0' value='${entry.qty}' onchange='update("${key}", ${price})' id='qty_${key}'></td>
+    <td><input type='number' min='0' value='${entry.lessRice || 0}' onchange='update("${key}", ${price})' id='lessRice_${key}'></td>
     <td><input type='number' min='0' value='${entry.rice}' onchange='update("${key}", ${price})' id='rice_${key}'></td>
     <td><input type='number' min='0' value='${entry.noodle}' onchange='update("${key}", ${price})' id='noodle_${key}'></td>
     <td><input type='number' min='0' value='${entry.spicy}' onchange='update("${key}", ${price})' id='spicy_${key}'></td>
     ${(!hideBigBowl && isSoupNoodle(label)) ? `<td><input type='number' min='0' value='${entry.bigBowl || 0}' onchange='update("${key}", ${price})' id='bigBowl_${key}'></td>` : "<td></td>"}
-    <td><input type='number' min='0' value='${entry.lessRice || 0}' onchange='update("${key}", ${price})' id='lessRice_${key}'></td>
   </tr>`;
 }
 
 function update(key, price) {
   const qty = parseInt(document.getElementById(`qty_${key}`).value) || 0;
+  const lessRice = parseInt(document.getElementById(`lessRice_${key}`)?.value || 0);
   const rice = parseInt(document.getElementById(`rice_${key}`).value) || 0;
   const noodle = parseInt(document.getElementById(`noodle_${key}`).value) || 0;
   const spicy = parseInt(document.getElementById(`spicy_${key}`).value) || 0;
   const bigBowl = hideBigBowl ? 0 : parseInt(document.getElementById(`bigBowl_${key}`)?.value || 0);
-  const lessRice = parseInt(document.getElementById(`lessRice_${key}`)?.value || 0);
 
   let data = loadLocal();
 
@@ -189,11 +189,11 @@ function renderStats() {
     total += itemSubtotal;
 
     const addons = [];
+    if (lessRice > 0) addons.push(`少飯 x${lessRice}`);
     if (rice > 0) addons.push(`加飯 x${rice}（$${riceCost}）`);
     if (noodle > 0) addons.push(`加麵 x${noodle}（$${noodleCost}）`);
     if (spicy > 0) addons.push(`加辣 x${spicy}（$${spicyCost}）`);
-    if (bigBowl > 0) addons.push(`大碗 x${bigBowl}（$${bigBowlCost}）`);
-    if (lessRice > 0) addons.push(`少飯 x${lessRice}`);
+    if (bigBowl > 0) addons.push(`加大 x${bigBowl}（$${bigBowlCost}）`);
 
     table += `<tr>
       <td>${item}</td>
