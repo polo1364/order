@@ -5,95 +5,28 @@
   <title>便當統計系統</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body {
-      font-family: "Microsoft JhengHei", sans-serif;
-      margin: 0;
-      padding: 0;
-      background: #f9f9f9;
-    }
-    .container {
-      max-width: 1000px;
-      margin: auto;
-      padding: 1em;
-    }
-    .section {
-      background: #fff;
-      padding: 1em;
-      border-radius: 6px;
-      margin-bottom: 1em;
-      box-shadow: 0 0 6px rgba(0,0,0,0.05);
-    }
-    h2, #currentStoreName {
-      color: #b30000;
-      text-align: center;
-      margin-top: 0;
-    }
-    table {
-      width: 100%;
-      overflow-x: auto;
-      display: block;
-    }
-    table, th, td {
-      border: 1px solid #ccc;
-      border-collapse: collapse;
-      padding: 6px 8px;
-      text-align: center;
-      background: #fff;
-      font-size: 14px;
-    }
-    th {
-      background: #eee;
-    }
+    body { font-family: "Microsoft JhengHei", sans-serif; margin: 0; padding: 0; background: #f9f9f9; }
+    .container { max-width: 1000px; margin: auto; padding: 1em; }
+    .section { background: #fff; padding: 1em; border-radius: 6px; margin-bottom: 1em; box-shadow: 0 0 6px rgba(0,0,0,0.05); }
+    h2, #currentStoreName { color: #b30000; text-align: center; margin-top: 0; }
+    table { width: 100%; overflow-x: auto; display: block; }
+    table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 6px 8px; text-align: center; background: #fff; font-size: 14px; }
+    th { background: #eee; }
     input[type=number], select {
-      width: 100%;
-      padding: 4px;
-      font-size: 14px;
-      box-sizing: border-box;
+      width: 100%; padding: 4px; font-size: 14px; box-sizing: border-box;
     }
-    select#selectStore {
-      width: auto;
-      min-width: 150px;
-      max-width: 100%;
-    }
-    button {
-      font-size: 14px;
-      padding: 8px 16px;
-      margin: 6px;
-      width: 100%;
-      max-width: 200px;
-    }
-    .print-footer {
-      display: none;
-      margin-top: 40px;
-      font-size: 18px;
-      line-height: 1.8;
-      text-align: center;
-    }
+    select#selectStore { width: auto; min-width: 150px; max-width: 100%; }
+    button { font-size: 14px; padding: 8px 16px; margin: 6px; width: 100%; max-width: 200px; }
+    .print-footer { display: none; margin-top: 40px; font-size: 18px; line-height: 1.8; text-align: center; }
     @media (min-width: 768px) {
-      input[type=number], select {
-        width: 60px;
-      }
-      select#selectStore {
-        width: auto;
-        min-width: 200px;
-      }
-      button {
-        width: auto;
-      }
+      input[type=number], select { width: 60px; }
+      select#selectStore { width: auto; min-width: 200px; }
+      button { width: auto; }
     }
     @media print {
-      .menu-table, input, button, select, .section label {
-        display: none !important;
-      }
-      .print-footer, #currentStoreName {
-        display: block !important;
-      }
-      html, body {
-        margin: 0;
-        padding: 0;
-        width: 210mm;
-        height: 297mm;
-      }
+      .menu-table, input, button, select, .section label { display: none !important; }
+      .print-footer, #currentStoreName { display: block !important; }
+      html, body { margin: 0; padding: 0; width: 210mm; height: 297mm; }
     }
   </style>
 </head>
@@ -121,20 +54,17 @@
     <div>地址:高雄市大寮區鳳林二路532號</div>
     <div>電話:(07)7871875</div>
   </div>
-<script>
-  // bento-main.js
 
+<script>
 let menuData = {};
 let currentStore = "";
-let currentAddonPrice = { rice: 0, noodle: 0, spicy: 0, bigBowl: 0 };
-let hideBigBowl = false;
+let currentAddonPrice = {};
+let soupOnlyBigBowl = [];
 
-fetch("menu.json")
-  .then(res => res.json())
-  .then(data => {
-    menuData = data;
-    loadStores();
-  });
+fetch("menu.json").then(res => res.json()).then(data => {
+  menuData = data;
+  loadStores();
+});
 
 function loadStores() {
   const select = document.getElementById("selectStore");
@@ -152,7 +82,7 @@ function loadStoreMenu() {
   currentStore = store;
   const storeData = menuData[store];
   currentAddonPrice = storeData.addonPrice || {};
-  hideBigBowl = !Object.values(storeData.menu).some(v => typeof v === "object");
+  soupOnlyBigBowl = storeData.soupOnlyBigBowl || [];
 
   document.getElementById("currentStoreName").style.display = "block";
   document.getElementById("currentStoreName").textContent = store;
@@ -168,29 +98,31 @@ function loadStoreMenu() {
   for (let item in storeData.menu) {
     const val = storeData.menu[item];
     if (typeof val === "number") {
-      html += renderRow(item, item, val);
+      html += renderRow(item, val);
     } else {
       for (let size in val) {
         const key = `${item}(${size})`;
-        html += renderRow(key, key, val[size]);
+        html += renderRow(key, val[size]);
       }
     }
   }
+
   html += '</table>';
   document.getElementById("menuArea").innerHTML = html;
   renderStats();
 }
 
-function renderRow(key, label, price) {
+function renderRow(key, price) {
+  const showBig = currentAddonPrice.bigBowl && (soupOnlyBigBowl.length === 0 || soupOnlyBigBowl.includes(key.split("(")[0]));
   return `<tr>
-    <td>${label}</td>
+    <td>${key}</td>
     <td>${price}</td>
     <td><input type='number' min='0' id='qty_${key}' onchange='update("${key}", ${price})'></td>
     <td><input type='number' min='0' id='lessRice_${key}' onchange='update("${key}", ${price})'></td>
     <td><input type='number' min='0' id='rice_${key}' onchange='update("${key}", ${price})'></td>
     <td><input type='number' min='0' id='noodle_${key}' onchange='update("${key}", ${price})'></td>
     <td><input type='number' min='0' id='spicy_${key}' onchange='update("${key}", ${price})'></td>
-    ${hideBigBowl ? '<td></td>' : `<td><input type='number' min='0' id='bigBowl_${key}' onchange='update("${key}", ${price})'></td>`}
+    ${showBig ? `<td><input type='number' min='0' id='bigBowl_${key}' onchange='update("${key}", ${price})'></td>` : "<td></td>"}
     ${currentStore === "品馨肉羹" ? `
     <td>
       飯:<input type='number' min='0' id='extraRice_${key}' onchange='update("${key}", ${price})'><br>
@@ -244,13 +176,12 @@ function renderStats() {
 
   for (let key in data) {
     const d = data[key];
-    const riceCost = d.rice * currentAddonPrice.rice;
-    const noodleCost = d.noodle * currentAddonPrice.noodle;
-    const spicyCost = d.spicy * currentAddonPrice.spicy;
+    const riceCost = d.rice * (currentAddonPrice.rice || 0);
+    const noodleCost = d.noodle * (currentAddonPrice.noodle || 0);
+    const spicyCost = d.spicy * (currentAddonPrice.spicy || 0);
     const bigCost = d.bigBowl * (currentAddonPrice.bigBowl || 0);
-    const mainCost = ((d.extraRice || 0) + (d.extraNoodle || 0) + (d.extraRiceNoodle || 0) + (d.extraFlat || 0)) * 10;
-
-    const subtotal = d.qty * d.price + riceCost + noodleCost + spicyCost + bigCost + mainCost;
+    const extraCost = ((d.extraRice || 0) + (d.extraNoodle || 0) + (d.extraRiceNoodle || 0) + (d.extraFlat || 0)) * 10;
+    const subtotal = d.qty * d.price + riceCost + noodleCost + spicyCost + bigCost + extraCost;
     total += subtotal;
 
     const notes = [];
@@ -268,7 +199,7 @@ function renderStats() {
       <td>${key}</td>
       <td>${d.qty}</td>
       <td>$${d.price}</td>
-      <td>${notes.join('<br>') || '-'}</td>
+      <td>${notes.join("<br>") || "-"}</td>
       <td>$${subtotal}</td>
     </tr>`;
   }
@@ -280,12 +211,10 @@ function renderStats() {
 function printStats() {
   window.print();
 }
-
 function clearData() {
   localStorage.removeItem("bento_data");
   location.reload();
 }
-
 </script>
 </body>
 </html>
