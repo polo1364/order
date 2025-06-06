@@ -266,6 +266,11 @@ function renderStats() {
   table += `<tr><td colspan='5'>總金額：$${total}</td></tr></table>`;
   statsDiv.innerHTML = table;
 }
+
+function loadLocal() {
+  return JSON.parse(localStorage.getItem("bento_data") || "{}");
+}
+  
 </script>
 </body>
 </html>
