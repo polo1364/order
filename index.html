@@ -103,19 +103,19 @@ function renderMenu() {
   let data = loadLocal();
   let html = "<table><tr><th>品項</th><th>價格</th><th>數量</th><th>加飯</th><th>加麵</th><th>加辣</th>";
   if (!hideBigBowl) html += "<th>大碗</th>";
-  html += "</tr>";
+  html += "<th>少飯</th></tr>";
 
   for (let item in menu) {
     const price = menu[item];
     if (typeof price === "number") {
       const key = item;
-      const entry = data[key] || { qty: 0, rice: 0, noodle: 0, spicy: 0, bigBowl: 0, price: price };
+      const entry = data[key] || { qty: 0, rice: 0, noodle: 0, spicy: 0, bigBowl: 0, lessRice: 0, price: price };
       html += renderRow(key, item, price, entry);
     } else if (typeof price === "object") {
       for (let sub in price) {
         const subKey = `${item} - ${sub}`;
         const subPrice = price[sub];
-        const entry = data[subKey] || { qty: 0, rice: 0, noodle: 0, spicy: 0, bigBowl: 0, price: subPrice };
+        const entry = data[subKey] || { qty: 0, rice: 0, noodle: 0, spicy: 0, bigBowl: 0, lessRice: 0, price: subPrice };
         html += renderRow(subKey, `${item}（${sub}）`, subPrice, entry);
       }
     }
@@ -134,6 +134,7 @@ function renderRow(key, label, price, entry) {
     <td><input type='number' min='0' value='${entry.noodle}' onchange='update("${key}", ${price})' id='noodle_${key}'></td>
     <td><input type='number' min='0' value='${entry.spicy}' onchange='update("${key}", ${price})' id='spicy_${key}'></td>
     ${(!hideBigBowl && isSoupNoodle(label)) ? `<td><input type='number' min='0' value='${entry.bigBowl || 0}' onchange='update("${key}", ${price})' id='bigBowl_${key}'></td>` : "<td></td>"}
+    <td><input type='number' min='0' value='${entry.lessRice || 0}' onchange='update("${key}", ${price})' id='lessRice_${key}'></td>
   </tr>`;
 }
 
@@ -143,13 +144,14 @@ function update(key, price) {
   const noodle = parseInt(document.getElementById(`noodle_${key}`).value) || 0;
   const spicy = parseInt(document.getElementById(`spicy_${key}`).value) || 0;
   const bigBowl = hideBigBowl ? 0 : parseInt(document.getElementById(`bigBowl_${key}`)?.value || 0);
+  const lessRice = parseInt(document.getElementById(`lessRice_${key}`)?.value || 0);
 
   let data = loadLocal();
 
-  if (qty === 0 && rice === 0 && noodle === 0 && spicy === 0 && bigBowl === 0) {
+  if (qty === 0 && rice === 0 && noodle === 0 && spicy === 0 && bigBowl === 0 && lessRice === 0) {
     delete data[key];
   } else {
-    data[key] = { qty, rice, noodle, spicy, bigBowl, price };
+    data[key] = { qty, rice, noodle, spicy, bigBowl, lessRice, price };
   }
 
   localStorage.setItem("bento_data", JSON.stringify(data));
@@ -174,7 +176,7 @@ function renderStats() {
   let table = "<table><tr><th>品項</th><th>數量</th><th>單價</th><th>加料</th><th>小計</th></tr>";
 
   for (let item in data) {
-    const { price, qty, rice, noodle, spicy, bigBowl = 0 } = data[item];
+    const { price, qty, rice, noodle, spicy, bigBowl = 0, lessRice = 0 } = data[item];
     const riceCost = rice * (currentAddonPrice.rice || 0);
     const noodleCost = noodle * (currentAddonPrice.noodle || 0);
     const spicyCost = spicy * (currentAddonPrice.spicy || 0);
@@ -186,12 +188,12 @@ function renderStats() {
     const itemSubtotal = qty * price + riceCost + noodleCost + spicyCost + bigBowlCost;
     total += itemSubtotal;
 
-    // 建立加料說明文字
     const addons = [];
     if (rice > 0) addons.push(`加飯 x${rice}（$${riceCost}）`);
     if (noodle > 0) addons.push(`加麵 x${noodle}（$${noodleCost}）`);
     if (spicy > 0) addons.push(`加辣 x${spicy}（$${spicyCost}）`);
     if (bigBowl > 0) addons.push(`大碗 x${bigBowl}（$${bigBowlCost}）`);
+    if (lessRice > 0) addons.push(`少飯 x${lessRice}`);
 
     table += `<tr>
       <td>${item}</td>
