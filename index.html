@@ -5,31 +5,80 @@
   <title>便當統計系統</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font-family: "Microsoft JhengHei", sans-serif; margin: 0; padding: 0; background: #f9f9f9; }
-    .container { max-width: 1000px; margin: auto; padding: 1em; }
-    .section { background: #fff; padding: 1em; border-radius: 6px; margin-bottom: 1em; box-shadow: 0 0 6px rgba(0,0,0,0.05); }
-    h2, #currentStoreName { color: #b30000; text-align: center; margin-top: 0; }
+    body {
+      font-family: "Microsoft JhengHei", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f9f9f9;
+    }
+    .container {
+      max-width: 1000px;
+      margin: auto;
+      padding: 1em;
+    }
+    .section {
+      background: #fff;
+      padding: 1em;
+      border-radius: 6px;
+      margin-bottom: 1em;
+      box-shadow: 0 0 6px rgba(0,0,0,0.05);
+    }
+    h2, #currentStoreName {
+      color: #b30000;
+      text-align: center;
+      margin-top: 0;
+    }
+    table {
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+    }
     table, th, td {
       border: 1px solid #ccc;
       border-collapse: collapse;
       padding: 6px 8px;
       text-align: center;
       background: #fff;
-      font-size: 16px;
+      font-size: 14px;
     }
-    th { background: #eee; }
-    input[type=number], select { width: 60px; padding: 2px; font-size: 14px; }
-    button { font-size: 14px; padding: 6px 12px; margin: 6px; }
+    th {
+      background: #eee;
+    }
+    input[type=number], select {
+      width: 100%;
+      padding: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    button {
+      font-size: 14px;
+      padding: 8px 16px;
+      margin: 6px;
+      width: 100%;
+      max-width: 200px;
+    }
     .print-footer {
       display: none;
       margin-top: 40px;
-      font-size: 20px;
+      font-size: 18px;
       line-height: 1.8;
       text-align: center;
     }
+    @media (min-width: 768px) {
+      input[type=number], select {
+        width: 60px;
+      }
+      button {
+        width: auto;
+      }
+    }
     @media print {
-      .menu-table, input, button, select, .section label { display: none !important; }
-      .print-footer, #currentStoreName { display: block !important; }
+      .menu-table, input, button, select, .section label {
+        display: none !important;
+      }
+      .print-footer, #currentStoreName {
+        display: block !important;
+      }
       html, body {
         margin: 0;
         padding: 0;
