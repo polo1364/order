@@ -50,6 +50,11 @@
       font-size: 14px;
       box-sizing: border-box;
     }
+    select#selectStore {
+      width: auto;
+      min-width: 150px;
+      max-width: 100%;
+    }
     button {
       font-size: 14px;
       padding: 8px 16px;
@@ -67,6 +72,10 @@
     @media (min-width: 768px) {
       input[type=number], select {
         width: 60px;
+      }
+      select#selectStore {
+        width: auto;
+        min-width: 200px;
       }
       button {
         width: auto;
@@ -126,51 +135,6 @@ const extraMainOptions = {
   }
 };
 
-async function loadStores() {
-  const res = await fetch("menu.json");
-  menuData = await res.json();
-  const sel = document.getElementById("selectStore");
-  sel.innerHTML = "<option value=''>請選擇</option>" +
-    Object.keys(menuData).map(s => `<option value='${s}'>${s}</option>`).join("");
-}
-
-function loadStoreMenu() {
-  const store = document.getElementById("selectStore").value;
-  if (!store) return;
-  currentStore = store;
-  currentAddonPrice = menuData[store].addonPrice || { rice: 0, noodle: 0, spicy: 0, bigBowl: 0 };
-  hideBigBowl = menuData[store].hideBigBowl === true;
-  document.getElementById("orders").style.display = "block";
-  document.getElementById("currentStoreName").style.display = "block";
-  document.getElementById("currentStoreName").textContent = `${store}`;
-  renderMenu();
-  renderStats();
-}
-
-function renderMenu() {
-  const menuDiv = document.getElementById("menuArea");
-  const menu = menuData[currentStore].menu;
-  let data = loadLocal();
-  let html = "<table><tr><th>品項</th><th>價格</th><th>數量</th><th>少飯</th><th>加飯</th><th>加麵</th><th>加辣</th>";
-  if (!hideBigBowl) html += "<th>加大</th>";
-  if (extraMainOptions[currentStore]?.enable) html += `<th>${extraMainOptions[currentStore].label}</th>`;
-  html += "</tr>";
-
-  for (let item in menu) {
-    const price = menu[item];
-    if (typeof price === "number") {
-      html += renderRow(item, item, price, data[item] || {});
-    } else {
-      for (let sub in price) {
-        const key = `${item} - ${sub}`;
-        html += renderRow(key, `${item}（${sub}）`, price[sub], data[key] || {});
-      }
-    }
-  }
-  html += "</table>";
-  menuDiv.innerHTML = html;
-}
-
 function renderRow(key, label, price, entry) {
   return `<tr>
     <td>${label}</td>
@@ -182,27 +146,31 @@ function renderRow(key, label, price, entry) {
     <td><input type='number' min='0' value='${entry.spicy || 0}' onchange='update("${key}", ${price})' id='spicy_${key}'></td>
     ${!hideBigBowl ? `<td><input type='number' min='0' value='${entry.bigBowl || 0}' onchange='update("${key}", ${price})' id='bigBowl_${key}'></td>` : "<td></td>"}
     ${extraMainOptions[currentStore]?.enable ?
-      `<td><select onchange='update("${key}", ${price})' id='extraMain_${key}'>
-        <option value=''>無</option>
-        ${extraMainOptions[currentStore].options.map(opt => `<option value='${opt}' ${entry.extraMain === opt ? "selected" : ""}>${opt}</option>`).join("")}
-      </select></td>` : ""}
+      `<td>
+        <select onchange='update("${key}", ${price})' id='extraMain_${key}'>
+          <option value=''>無</option>
+          ${extraMainOptions[currentStore].options.map(opt => `<option value='${opt}' ${entry.extraMain === opt ? "selected" : ""}>${opt}</option>`).join("")}
+        </select>
+        <input type='number' min='0' value='${entry.extraQty || 0}' onchange='update("${key}", ${price})' id='extraQty_${key}' />
+      </td>` : ""}
   </tr>`;
 }
 
 function update(key, price) {
-  const qty = parseInt(document.getElementById(`qty_${key}`).value) || 0;
+  const qty = parseInt(document.getElementById(`qty_${key}`)?.value || 0);
   const lessRice = parseInt(document.getElementById(`lessRice_${key}`)?.value || 0);
-  const rice = parseInt(document.getElementById(`rice_${key}`).value) || 0;
-  const noodle = parseInt(document.getElementById(`noodle_${key}`).value) || 0;
-  const spicy = parseInt(document.getElementById(`spicy_${key}`).value) || 0;
+  const rice = parseInt(document.getElementById(`rice_${key}`)?.value || 0);
+  const noodle = parseInt(document.getElementById(`noodle_${key}`)?.value || 0);
+  const spicy = parseInt(document.getElementById(`spicy_${key}`)?.value || 0);
   const bigBowl = hideBigBowl ? 0 : parseInt(document.getElementById(`bigBowl_${key}`)?.value || 0);
   const extraMain = document.getElementById(`extraMain_${key}`)?.value || "";
+  const extraQty = parseInt(document.getElementById(`extraQty_${key}`)?.value || 0);
 
   let data = loadLocal();
-  if (qty === 0 && rice === 0 && noodle === 0 && spicy === 0 && bigBowl === 0 && lessRice === 0 && extraMain === "") {
+  if (qty === 0 && rice === 0 && noodle === 0 && spicy === 0 && bigBowl === 0 && lessRice === 0 && extraMain === "" && extraQty === 0) {
     delete data[key];
   } else {
-    data[key] = { qty, rice, noodle, spicy, bigBowl, lessRice, extraMain, price };
+    data[key] = { qty, rice, noodle, spicy, bigBowl, lessRice, extraMain, extraQty, price };
   }
   localStorage.setItem("bento_data", JSON.stringify(data));
   renderStats();
@@ -220,12 +188,12 @@ function renderStats() {
   let table = "<table><tr><th>品項</th><th>數量</th><th>單價</th><th>備註</th><th>小計</th></tr>";
 
   for (let item in data) {
-    const { price, qty, rice, noodle, spicy, bigBowl = 0, lessRice = 0, extraMain = "" } = data[item];
+    const { price, qty, rice, noodle, spicy, bigBowl = 0, lessRice = 0, extraMain = "", extraQty = 0 } = data[item];
     const riceCost = rice * currentAddonPrice.rice;
     const noodleCost = noodle * currentAddonPrice.noodle;
     const spicyCost = spicy * currentAddonPrice.spicy;
     const bigBowlCost = bigBowl * (currentAddonPrice.bigBowl || 0);
-    const extraMainCost = extraMain && extraMainOptions[currentStore]?.price ? extraMainOptions[currentStore].price : 0;
+    const extraMainCost = extraMain && extraQty > 0 && extraMainOptions[currentStore]?.price ? extraQty * extraMainOptions[currentStore].price : 0;
 
     const itemSubtotal = qty * price + riceCost + noodleCost + spicyCost + bigBowlCost + extraMainCost;
     total += itemSubtotal;
@@ -236,7 +204,7 @@ function renderStats() {
     if (noodle > 0) addons.push(`加麵 x${noodle}（$${noodleCost}）`);
     if (spicy > 0) addons.push(`加辣 x${spicy}（$${spicyCost}）`);
     if (bigBowl > 0) addons.push(`加大 x${bigBowl}（$${bigBowlCost}）`);
-    if (extraMain) addons.push(`加${extraMain}（$${extraMainCost}）`);
+    if (extraMain && extraQty > 0) addons.push(`加${extraMain} x${extraQty}（$${extraMainCost}）`);
 
     table += `<tr>
       <td>${item}</td>
@@ -249,20 +217,6 @@ function renderStats() {
   table += `<tr><td colspan='5'>總金額：$${total}</td></tr></table>`;
   statsDiv.innerHTML = table;
 }
-
-function clearData() {
-  localStorage.removeItem("bento_data");
-  renderMenu();
-  renderStats();
-}
-function loadLocal() {
-  const json = localStorage.getItem("bento_data");
-  return json ? JSON.parse(json) : {};
-}
-function printStats() {
-  window.print();
-}
-loadStores();
 </script>
 </body>
 </html>
